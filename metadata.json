@@ -1,0 +1,6 @@
+{
+  "name": "Game Asset Organizer",
+  "description": "Organize, tag, and search game development assets stored on Google Drive using smart categorization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
