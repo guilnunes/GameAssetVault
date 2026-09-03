@@ -22,10 +22,61 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   const [volume, setVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [clientBlobUrl, setClientBlobUrl] = useState<string | null>(null);
 
-  // Determine media URL: use proxy if on Google Drive with token
+  // For Google Drive assets, generate a direct blob URL as fallback for static deployments (GitHub Pages)
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+
+    if (asset && accessToken && !asset.id.startsWith("sample-")) {
+      // Test proxy availability or fetch direct blob
+      fetch(`/api/drive-proxy/file/${asset.id}?token=${encodeURIComponent(accessToken)}`, { method: "HEAD" })
+        .then((res) => {
+          if (!res.ok) {
+            // Static host (GitHub Pages) or proxy unavailable: fetch directly from Drive API
+            return fetch(`https://www.googleapis.com/drive/v3/files/${asset.id}?alt=media`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            })
+              .then((r) => r.blob())
+              .then((blob) => {
+                if (active) {
+                  createdUrl = URL.createObjectURL(blob);
+                  setClientBlobUrl(createdUrl);
+                }
+              });
+          } else {
+            if (active) setClientBlobUrl(null);
+          }
+        })
+        .catch(() => {
+          // Network or static host fallback
+          fetch(`https://www.googleapis.com/drive/v3/files/${asset.id}?alt=media`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+            .then((r) => r.blob())
+            .then((blob) => {
+              if (active) {
+                createdUrl = URL.createObjectURL(blob);
+                setClientBlobUrl(createdUrl);
+              }
+            })
+            .catch((e) => console.warn("Could not fetch direct Drive audio blob:", e));
+        });
+    } else {
+      setClientBlobUrl(null);
+    }
+
+    return () => {
+      active = false;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [asset?.id, accessToken]);
+
+  // Determine media URL: use blob fallback if static, otherwise proxy
   const audioSrc = React.useMemo(() => {
     if (!asset) return "";
+    if (clientBlobUrl) return clientBlobUrl;
     if (accessToken && !asset.id.startsWith("sample-")) {
       return `/api/drive-proxy/file/${asset.id}?token=${encodeURIComponent(accessToken)}`;
     }

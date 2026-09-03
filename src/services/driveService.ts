@@ -306,3 +306,63 @@ export async function updateDriveAssetMetadata(
     throw new Error(`Failed to save metadata to Drive: ${err}`);
   }
 }
+
+// Client-side fallback smart metadata generator for static environments (e.g. GitHub Pages)
+export function generateClientSmartMetadata(asset: {
+  id: string;
+  name: string;
+  category: AssetCategory;
+  extension?: string;
+}): SmartMetadata {
+  const lowerName = asset.name.toLowerCase();
+  const ext = (asset.extension || getFileExtension(asset.name)).toLowerCase();
+
+  const tags: string[] = [asset.category];
+  let mood = "Standard Game Asset";
+  let folder = `Assets/${asset.category.toUpperCase()}/`;
+
+  if (asset.category === "imagery") {
+    folder = "Assets/Sprites/";
+    mood = lowerName.includes("pixel") ? "16-Bit Pixel Art" : "Stylized 2D Graphic";
+    tags.push("2d-sprite", "texture", ext);
+    if (lowerName.includes("pixel")) tags.push("pixel-art", "retro");
+    if (lowerName.includes("idle") || lowerName.includes("walk") || lowerName.includes("attack")) tags.push("animated", "spritesheet");
+    if (lowerName.includes("tile") || lowerName.includes("map")) tags.push("tilemap", "environment");
+  } else if (asset.category === "music") {
+    folder = "Assets/Audio/Music/";
+    mood = lowerName.includes("boss") ? "Intense Boss Battle" : lowerName.includes("town") ? "Peaceful Village Atmosphere" : "Cinematic Game Score";
+    tags.push("bgm", "soundtrack", "audio-loop", ext);
+    if (lowerName.includes("retro") || lowerName.includes("8bit") || lowerName.includes("chiptune")) tags.push("chiptune", "8-bit");
+    if (lowerName.includes("ambient")) tags.push("ambient", "atmospheric");
+  } else if (asset.category === "sound") {
+    folder = "Assets/Audio/SFX/";
+    mood = "Action Sound FX";
+    tags.push("sfx", "audio", "foley", ext);
+    if (lowerName.includes("click") || lowerName.includes("button")) tags.push("ui-sfx");
+    if (lowerName.includes("sword") || lowerName.includes("hit") || lowerName.includes("punch")) tags.push("combat-sfx");
+    if (lowerName.includes("laser") || lowerName.includes("gun")) tags.push("sci-fi-sfx");
+  } else if (asset.category === "ui") {
+    folder = "Assets/UI/";
+    mood = "Game Interface & HUD";
+    tags.push("ui-element", "hud", "interface", ext);
+    if (lowerName.includes("icon")) tags.push("icon");
+    if (lowerName.includes("frame") || lowerName.includes("border")) tags.push("window-frame");
+  } else if (asset.category === "3d") {
+    folder = "Assets/Models/";
+    mood = "3D Asset / Mesh";
+    tags.push("3d-model", "mesh", ext);
+  } else if (asset.category === "fonts") {
+    folder = "Assets/Fonts/";
+    mood = "Game Typography";
+    tags.push("font", "typography", ext);
+  }
+
+  return {
+    category: asset.category,
+    subCategory: tags[1] || asset.category,
+    smartTags: Array.from(new Set(tags)),
+    moodStyle: mood,
+    suggestedFolder: folder,
+    summary: `Game development ${asset.category} asset (${asset.name}) ready for engine integration.`,
+  };
+}

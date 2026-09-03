@@ -7,7 +7,11 @@ import {
   getAccessToken,
   setAccessToken,
 } from "./services/authService";
-import { fetchDriveFiles, fetchDriveFolders } from "./services/driveService";
+import {
+  fetchDriveFiles,
+  fetchDriveFolders,
+  generateClientSmartMetadata,
+} from "./services/driveService";
 import { SAMPLE_GAME_ASSETS } from "./data/sampleAssets";
 import { CATEGORIES, getCategoryInfo } from "./data/categories";
 import {
@@ -202,9 +206,34 @@ export default function App() {
             return item;
           })
         );
+      } else {
+        // Fallback for static environments (e.g. GitHub Pages) without an Express server
+        setAssets((prev) =>
+          prev.map((item) => {
+            const meta = generateClientSmartMetadata(item);
+            return {
+              ...item,
+              category: meta.category,
+              smart: meta,
+              userTags: Array.from(new Set([...item.userTags, ...meta.smartTags])),
+            };
+          })
+        );
       }
     } catch (err: any) {
-      console.error("Batch auto-tag error:", err);
+      console.warn("Backend auto-tag unavailable, using client-side smart categorizer:", err);
+      // Fallback for static host / offline
+      setAssets((prev) =>
+        prev.map((item) => {
+          const meta = generateClientSmartMetadata(item);
+          return {
+            ...item,
+            category: meta.category,
+            smart: meta,
+            userTags: Array.from(new Set([...item.userTags, ...meta.smartTags])),
+          };
+        })
+      );
     } finally {
       setIsBatchTagging(false);
     }

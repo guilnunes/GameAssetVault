@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { EnrichedAsset, AssetCategory, SmartMetadata } from "../types";
 import { CATEGORIES, getCategoryInfo, formatFileSize } from "../data/categories";
-import { updateDriveAssetMetadata } from "../services/driveService";
+import { updateDriveAssetMetadata, generateClientSmartMetadata } from "../services/driveService";
 
 interface AssetDetailModalProps {
   asset: EnrichedAsset | null;
@@ -109,9 +109,21 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
           const merged = Array.from(new Set([...tags, ...result.smartTags]));
           setTags(merged);
         }
+      } else {
+        // Fallback for static hosts (GitHub Pages)
+        const clientMeta = generateClientSmartMetadata(asset);
+        setSmartMeta(clientMeta);
+        setCurrentCategory(clientMeta.category);
+        const merged = Array.from(new Set([...tags, ...clientMeta.smartTags]));
+        setTags(merged);
       }
     } catch (err) {
-      console.error("AI analysis error:", err);
+      console.warn("AI analysis endpoint unavailable, using client fallback:", err);
+      const clientMeta = generateClientSmartMetadata(asset);
+      setSmartMeta(clientMeta);
+      setCurrentCategory(clientMeta.category);
+      const merged = Array.from(new Set([...tags, ...clientMeta.smartTags]));
+      setTags(merged);
     } finally {
       setIsAnalyzing(false);
     }
