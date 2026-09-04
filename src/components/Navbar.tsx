@@ -57,16 +57,16 @@ export const Navbar: React.FC<NavbarProps> = ({
       className="sticky top-0 z-30 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md transition-colors"
     >
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
-        {/* Brand Left Section */}
+        {/* Brand Left Section - Logo only */}
         <div className="flex items-center gap-2.5 min-w-0 shrink-0">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-xs shrink-0">
+          <div
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-xs shrink-0"
+            title="Game Asset Organizer"
+          >
             <Gamepad2 className="w-5 h-5" />
           </div>
-          <div className="flex items-center gap-2 min-w-0">
-            <h1 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight whitespace-nowrap">
-              Game Asset Vault
-            </h1>
 
+          <div className="flex items-center gap-2 min-w-0">
             {/* Connection Status Badge */}
             {isConnectedToDrive ? (
               <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap shrink-0">
@@ -167,58 +167,66 @@ export const Navbar: React.FC<NavbarProps> = ({
           {user ? (
             <div
               id="google-user-profile-bar"
-              className="flex items-center gap-2.5 pl-1.5 py-1 pr-1 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-2xs shrink-0"
+              className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-2xs shrink-0"
             >
-              {user.photoURL && !avatarError ? (
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName || "Google Profile"}
-                  referrerPolicy="no-referrer"
-                  onError={() => setAvatarError(true)}
-                  className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-700 object-cover shrink-0 shadow-2xs"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
-                  {(user.displayName || user.email || "G")[0].toUpperCase()}
-                </div>
-              )}
-
-              <div className="flex flex-col text-left text-xs leading-tight min-w-0 max-w-[130px] sm:max-w-[160px] lg:max-w-[200px]">
-                <span className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                  {user.displayName || user.email}
-                </span>
-                {isConnectedToDrive ? (
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Drive Connected
-                  </span>
+              <div
+                title={user.displayName || user.email || "Google Account"}
+                className="relative shrink-0"
+              >
+                {user.photoURL && !avatarError ? (
+                  <img
+                    src={user.photoURL}
+                    alt={user.displayName || "Google Profile"}
+                    referrerPolicy="no-referrer"
+                    onError={() => setAvatarError(true)}
+                    className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-700 object-cover shrink-0 shadow-2xs"
+                  />
                 ) : (
-                  <button
-                    type="button"
-                    onClick={onSignIn}
-                    className={`text-[10px] hover:underline font-medium text-left truncate cursor-pointer flex items-center gap-1 ${
-                      isSyncOverdue
-                        ? "text-amber-600 dark:text-amber-400 font-semibold"
-                        : "text-indigo-600 dark:text-indigo-400"
-                    }`}
-                    title={
-                      isSyncOverdue && syncAgeInDays !== null
-                        ? `Last synced ${syncAgeInDays} days ago. Click to sync live Drive.`
-                        : "Connect live Drive sync"
-                    }
-                  >
-                    <FolderSync className={`w-3 h-3 ${isSyncOverdue ? "text-amber-500 animate-pulse" : "text-indigo-500"}`} />
-                    <span>{isSyncOverdue && syncAgeInDays !== null ? `Sync (${syncAgeInDays}d ago)` : "Sync Live Drive"}</span>
-                  </button>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                    {(user.displayName || user.email || "G")[0].toUpperCase()}
+                  </div>
                 )}
+                {/* Status indicator dot */}
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${
+                    isConnectedToDrive ? "bg-emerald-500" : "bg-indigo-500"
+                  }`}
+                  title={isConnectedToDrive ? "Drive Connected" : "Vault Synced"}
+                />
               </div>
+
+              {!isConnectedToDrive && (
+                <button
+                  type="button"
+                  onClick={onSignIn}
+                  className={`px-2 py-1 rounded-xl text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+                    isSyncOverdue
+                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25"
+                      : "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                  }`}
+                  title={
+                    isSyncOverdue && syncAgeInDays !== null
+                      ? `Last synced ${syncAgeInDays} days ago. Click to sync live Drive.`
+                      : "Connect live Drive sync"
+                  }
+                >
+                  <FolderSync
+                    className={`w-3 h-3 ${
+                      isSyncOverdue ? "text-amber-500 animate-pulse" : "text-indigo-500"
+                    }`}
+                  />
+                  <span className="hidden xl:inline">
+                    {isSyncOverdue ? "Sync" : "Sync Drive"}
+                  </span>
+                </button>
+              )}
 
               <button
                 id="sign-out-button"
                 type="button"
                 onClick={onSignOut}
                 className="h-8 w-8 flex items-center justify-center rounded-xl text-zinc-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
-                title="Disconnect & Sign Out"
+                title={`Signed in as ${user.displayName || user.email}. Click to sign out.`}
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>
@@ -267,13 +275,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="py-1 px-2.5 text-xs"
             />
           ) : (
-            /* If user IS connected, show their Google profile pill right on the top bar! */
+            /* If user IS connected, show their Google profile icon right on the top bar! */
             <button
               id="mobile-user-profile-badge"
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="flex items-center gap-1.5 h-9 pl-1 pr-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 text-xs font-semibold shrink-0 cursor-pointer shadow-2xs max-w-[130px]"
-              title="Google Profile"
+              className="relative w-9 h-9 flex items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0 cursor-pointer shadow-2xs"
+              title={user.displayName || user.email || "Google Profile"}
             >
               {user.photoURL && !avatarError ? (
                 <img
@@ -288,9 +296,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {(user.displayName || user.email || "G")[0].toUpperCase()}
                 </div>
               )}
-              <span className="truncate text-xs">
-                {user.displayName?.split(" ")[0] || user.email?.split("@")[0]}
-              </span>
+              {/* Status indicator dot */}
+              <span
+                className={`absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full border border-white dark:border-zinc-900 ${
+                  isConnectedToDrive ? "bg-emerald-500" : "bg-indigo-500"
+                }`}
+              />
             </button>
           )}
 
