@@ -63,6 +63,7 @@ export interface UserPreferences {
   defaultViewMode: "grid" | "list";
   defaultSortBy: "name" | "modifiedTime" | "size" | "category";
   selectedDriveFolder?: string;
+  savedFolders?: Array<{ id: string; name: string }>;
   updatedAt?: string;
 }
 

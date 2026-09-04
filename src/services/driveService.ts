@@ -8,6 +8,85 @@ export function getFileExtension(filename: string): string {
   return parts[parts.length - 1].toLowerCase();
 }
 
+// Check if a Drive item is a valid game development asset
+export function isGameAsset(item: DriveFileItem | EnrichedAsset): boolean {
+  const mime = item.mimeType?.toLowerCase() || "";
+  const ext = getFileExtension(item.name);
+  const name = item.name.toLowerCase();
+
+  // Exclude Google Workspace files, folders, and system files
+  if (mime.startsWith("application/vnd.google-apps")) {
+    return false;
+  }
+
+  // Exclude hidden files
+  if (name.startsWith(".")) {
+    return false;
+  }
+
+  // Exclude system, logs, binaries, cache, and temporary data files
+  const bannedExtensions = [
+    "tmp", "dat", "log", "bak", "sys", "ini", "dll", "exe", "msi", "dmg",
+    "pkg", "deb", "rpm", "bin", "iso", "torrent", "part", "crdownload",
+    "cache", "lock", "ds_store", "class", "pyc", "o", "env", "git", "config"
+  ];
+  if (bannedExtensions.includes(ext)) {
+    return false;
+  }
+
+  // Exclude non-game office documents & spreadsheets
+  const officeExtensions = ["xlsx", "xls", "docx", "doc", "pptx", "ppt", "csv", "tsv", "ods", "odt"];
+  if (officeExtensions.includes(ext)) {
+    return false;
+  }
+
+  // Audio assets (Music & Sound Effects)
+  const audioExtensions = ["mp3", "wav", "ogg", "flac", "m4a", "aac", "mid", "midi", "aiff", "wma"];
+  if (mime.startsWith("audio/") || audioExtensions.includes(ext)) {
+    return true;
+  }
+
+  // 2D Imagery, Textures, Spritesheets, Vector Art
+  const imageExtensions = [
+    "png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "tga", "psd", "ase", "aseprite", "tiff", "hdr", "exr"
+  ];
+  if (mime.startsWith("image/") || imageExtensions.includes(ext)) {
+    return true;
+  }
+
+  // 3D Models & Meshes
+  const modelExtensions = [
+    "fbx", "obj", "gltf", "glb", "blend", "dae", "3ds", "stl", "max", "c4d", "ma", "mb"
+  ];
+  if (modelExtensions.includes(ext)) {
+    return true;
+  }
+
+  // Fonts & Typography
+  const fontExtensions = ["ttf", "otf", "woff", "woff2", "fnt"];
+  if (mime.includes("font") || fontExtensions.includes(ext)) {
+    return true;
+  }
+
+  // Game Design Documents & Asset Specifications
+  if (ext === "gdd" || ext === "pdf") {
+    return true;
+  }
+
+  // Game Engine & Tilemap Data
+  const gameDataExtensions = ["tmx", "tsx", "shader", "hlsl", "glsl", "prefab", "mat", "atlas"];
+  if (gameDataExtensions.includes(ext)) {
+    return true;
+  }
+
+  // User explicitly categorized via Google Drive properties
+  if (item.properties?.category && item.properties.category !== "other") {
+    return true;
+  }
+
+  return false;
+}
+
 // Categorize game assets by extension and naming heuristics
 export function categorizeAsset(item: DriveFileItem): AssetCategory {
   const name = item.name.toLowerCase();
@@ -21,7 +100,7 @@ export function categorizeAsset(item: DriveFileItem): AssetCategory {
   // 1. Audio / Music vs Sound FX
   if (
     mime.startsWith("audio/") ||
-    ["mp3", "wav", "ogg", "flac", "m4a", "aac", "mid", "midi"].includes(ext)
+    ["mp3", "wav", "ogg", "flac", "m4a", "aac", "mid", "midi", "aiff", "wma"].includes(ext)
   ) {
     if (
       name.includes("bgm") ||
@@ -74,13 +153,13 @@ export function categorizeAsset(item: DriveFileItem): AssetCategory {
   // 3. 2D Imagery (Sprites, Textures, Tilesets, Backgrounds)
   if (
     mime.startsWith("image/") ||
-    ["png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "tga", "psd", "ase", "aseprite"].includes(ext)
+    ["png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "tga", "psd", "ase", "aseprite", "tiff", "hdr", "exr"].includes(ext)
   ) {
     return "imagery";
   }
 
   // 4. 3D Models
-  if (["fbx", "obj", "gltf", "glb", "blend", "dae", "3ds", "stl", "max", "c4d"].includes(ext)) {
+  if (["fbx", "obj", "gltf", "glb", "blend", "dae", "3ds", "stl", "max", "c4d", "ma", "mb"].includes(ext)) {
     return "3d";
   }
 
@@ -93,12 +172,7 @@ export function categorizeAsset(item: DriveFileItem): AssetCategory {
   }
 
   // 6. Docs & Game Design
-  if (
-    mime.includes("pdf") ||
-    mime.includes("document") ||
-    mime.includes("sheet") ||
-    ["pdf", "docx", "doc", "md", "txt", "gdd", "json", "csv"].includes(ext)
-  ) {
+  if (["gdd", "pdf"].includes(ext)) {
     return "docs";
   }
 
@@ -154,7 +228,16 @@ export async function fetchDriveFiles(
     onlyGameAssets?: boolean;
   }
 ): Promise<EnrichedAsset[]> {
-  const queryParts = ["trashed = false"];
+  const queryParts = [
+    "trashed = false",
+    "mimeType != 'application/vnd.google-apps.folder'",
+    "mimeType != 'application/vnd.google-apps.document'",
+    "mimeType != 'application/vnd.google-apps.spreadsheet'",
+    "mimeType != 'application/vnd.google-apps.presentation'",
+    "mimeType != 'application/vnd.google-apps.form'",
+    "mimeType != 'application/vnd.google-apps.shortcut'",
+    "mimeType != 'application/vnd.google-apps.drawing'",
+  ];
 
   if (options?.parentFolderId && options.parentFolderId !== "all") {
     queryParts.push(`'${options.parentFolderId}' in parents`);
@@ -170,7 +253,7 @@ export async function fetchDriveFiles(
     "files(id, name, mimeType, size, modifiedTime, thumbnailLink, webViewLink, iconLink, parents, description, properties, appProperties)";
   const url = `${DRIVE_API_BASE}/files?q=${encodeURIComponent(
     query
-  )}&fields=${encodeURIComponent(fields)}&pageSize=100&orderBy=folder,name`;
+  )}&fields=${encodeURIComponent(fields)}&pageSize=100&orderBy=modifiedTime desc`;
 
   const response = await fetch(url, {
     headers: {
@@ -186,7 +269,10 @@ export async function fetchDriveFiles(
   const data = await response.json();
   const rawFiles: DriveFileItem[] = data.files || [];
 
-  return rawFiles.map((item) => enrichDriveAsset(item));
+  // Filter strictly for game development assets
+  const gameFiles = rawFiles.filter(isGameAsset);
+
+  return gameFiles.map((item) => enrichDriveAsset(item));
 }
 
 // Fetch subfolders list for folder picker / navigation

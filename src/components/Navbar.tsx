@@ -40,6 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSampleMode,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   return (
     <header
@@ -64,16 +65,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden sm:inline">Drive Live</span>
                 <span className="sm:hidden">Live</span>
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap shrink-0">
-                Demo
+            ) : user ? (
+              <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 whitespace-nowrap shrink-0">
+                <CheckCircle2 className="w-3 h-3 text-indigo-500" />
+                <span>Vault Synced</span>
               </span>
-            )}
+            ) : null}
 
             {/* Cloud Persistence Badge */}
             {user && (
               <span
-                className="hidden xl:inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 whitespace-nowrap shrink-0"
+                className="hidden 2xl:inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 whitespace-nowrap shrink-0"
                 title="Firestore Cloud Persistence Active"
               >
                 <Database className="w-3 h-3" /> Cloud Synced
@@ -134,36 +136,54 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Auth State & Google Sign In */}
           {user ? (
-            <div className="flex items-center gap-2 pl-1 shrink-0">
-              {user.photoURL ? (
+            <div
+              id="google-user-profile-bar"
+              className="flex items-center gap-2.5 pl-1.5 py-1 pr-1 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-2xs shrink-0"
+            >
+              {user.photoURL && !avatarError ? (
                 <img
                   src={user.photoURL}
-                  alt={user.displayName || "User"}
-                  className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-700 object-cover shrink-0"
+                  alt={user.displayName || "Google Profile"}
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarError(true)}
+                  className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-700 object-cover shrink-0 shadow-2xs"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                  {(user.displayName || user.email || "U")[0].toUpperCase()}
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                  {(user.displayName || user.email || "G")[0].toUpperCase()}
                 </div>
               )}
 
-              <div className="hidden xl:flex flex-col text-left text-xs leading-tight min-w-0 max-w-28">
+              <div className="flex flex-col text-left text-xs leading-tight min-w-0 max-w-[130px] sm:max-w-[160px] lg:max-w-[200px]">
                 <span className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                   {user.displayName || user.email}
                 </span>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  Connected
-                </span>
+                {isConnectedToDrive ? (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Drive Connected
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onSignIn}
+                    className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium text-left truncate cursor-pointer flex items-center gap-1"
+                    title="Connect live Drive sync"
+                  >
+                    <FolderSync className="w-3 h-3 text-indigo-500" />
+                    <span>Sync Live Drive</span>
+                  </button>
+                )}
               </div>
 
               <button
                 id="sign-out-button"
                 type="button"
                 onClick={onSignOut}
-                className="h-9 w-9 flex items-center justify-center rounded-xl text-zinc-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
-                title="Disconnect Google Drive"
+                className="h-8 w-8 flex items-center justify-center rounded-xl text-zinc-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
+                title="Disconnect & Sign Out"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
@@ -201,16 +221,43 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Sparkles className={`w-3.5 h-3.5 ${isBatchTagging ? "animate-spin" : ""}`} />
           </button>
 
+          {/* If user is NOT connected, show Connect button */}
           {!user ? (
             <GoogleSignInButton
               onClick={onSignIn}
               text="Connect"
               compact
-              className="py-1 px-2 text-xs"
+              className="py-1 px-2.5 text-xs"
             />
-          ) : null}
+          ) : (
+            /* If user IS connected, show their Google profile pill right on the top bar! */
+            <button
+              id="mobile-user-profile-badge"
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="flex items-center gap-1.5 h-9 pl-1 pr-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 text-xs font-semibold shrink-0 cursor-pointer shadow-2xs max-w-[130px]"
+              title="Google Profile"
+            >
+              {user.photoURL && !avatarError ? (
+                <img
+                  src={user.photoURL}
+                  alt="Profile"
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarError(true)}
+                  className="w-7 h-7 rounded-full object-cover shrink-0"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                  {(user.displayName || user.email || "G")[0].toUpperCase()}
+                </div>
+              )}
+              <span className="truncate text-xs">
+                {user.displayName?.split(" ")[0] || user.email?.split("@")[0]}
+              </span>
+            </button>
+          )}
 
-          {/* Mobile Menu / Drawer Toggle (Available for ALL users) */}
+          {/* Mobile Menu / Drawer Toggle */}
           <button
             id="mobile-nav-toggle-button"
             type="button"
@@ -220,12 +267,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             {isMobileMenuOpen ? (
               <X className="w-4 h-4" />
-            ) : user && user.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt="User"
-                className="w-6 h-6 rounded-full object-cover"
-              />
             ) : (
               <Menu className="w-4 h-4" />
             )}
@@ -241,26 +282,47 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           {/* User profile strip OR Demo Status Strip */}
           {user ? (
-            <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800">
-              {user.photoURL ? (
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
+              {user.photoURL && !avatarError ? (
                 <img
                   src={user.photoURL}
                   alt="Profile"
-                  className="w-10 h-10 rounded-full border border-zinc-200 dark:border-zinc-700 object-cover"
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarError(true)}
+                  className="w-11 h-11 rounded-full border border-zinc-200 dark:border-zinc-700 object-cover shrink-0"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center">
-                  {(user.displayName || user.email || "U")[0].toUpperCase()}
+                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white font-bold flex items-center justify-center shrink-0">
+                  {(user.displayName || user.email || "G")[0].toUpperCase()}
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                  {user.displayName || user.email}
+                <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                  {user.displayName || "Google Account"}
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Drive Connected
-                  </span>
+                {user.email && (
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                    {user.email}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mt-1">
+                  {isConnectedToDrive ? (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Drive Live
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        onSignIn();
+                      }}
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium hover:underline flex items-center gap-1"
+                    >
+                      <FolderSync className="w-3 h-3 text-indigo-500" />
+                      Sync Live Drive
+                    </button>
+                  )}
                   <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-1">
                     <Database className="w-3 h-3" /> Cloud Synced
                   </span>

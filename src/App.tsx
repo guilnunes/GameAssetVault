@@ -11,6 +11,7 @@ import {
   fetchDriveFiles,
   fetchDriveFolders,
   generateClientSmartMetadata,
+  isGameAsset,
 } from "./services/driveService";
 import {
   loadUserAssetsFromDb,
@@ -96,17 +97,24 @@ export default function App() {
             viewMode: prefs.defaultViewMode || f.viewMode,
             sortBy: prefs.defaultSortBy || f.sortBy,
           }));
+          if (prefs.savedFolders && prefs.savedFolders.length > 0) {
+            setDriveFolders(prefs.savedFolders);
+          }
         }
 
         // 2. Load stored assets from Cloud Firestore
         const dbAssets = await loadUserAssetsFromDb(uid);
-        if (dbAssets && dbAssets.length > 0) {
-          setAssets(dbAssets);
+        const validGameAssets = dbAssets ? dbAssets.filter(isGameAsset) : [];
+        if (validGameAssets.length > 0) {
+          setAssets(validGameAssets);
           setIsSampleMode(false);
-          setDbAssetCount(dbAssets.length);
+          setDbAssetCount(validGameAssets.length);
         } else if (token) {
           // If Firestore is empty for this user, automatically scan their Google Drive
           await scanDriveFiles(token, "all", uid);
+        } else {
+          setAssets(SAMPLE_GAME_ASSETS);
+          setIsSampleMode(true);
         }
       } catch (dbErr) {
         console.warn("Could not load assets from Firestore:", dbErr);
@@ -132,6 +140,10 @@ export default function App() {
 
         if (folders.length > 0) {
           setDriveFolders(folders);
+          const currentUid = uid || user?.uid;
+          if (currentUid) {
+            saveUserPreferences(currentUid, { savedFolders: folders }).catch(() => {});
+          }
         }
 
         const folderMap = new Map<string, string>(
@@ -140,7 +152,7 @@ export default function App() {
 
         if (files.length === 0) {
           setErrorMsg(
-            "No game assets found in this Google Drive folder. Showing sample game assets for reference."
+            "No game assets (.png, .wav, .mp3, .fbx, etc.) found in this Google Drive folder. Showing sample game assets for preview."
           );
           setAssets(SAMPLE_GAME_ASSETS);
           setIsSampleMode(true);
@@ -476,6 +488,23 @@ export default function App() {
           if (!hasAll) return false;
         }
 
+        // Drive folder filter (selected from top folder bar)
+        if (selectedFolderId !== "all") {
+          const selectedFolder = driveFolders.find((f) => f.id === selectedFolderId);
+          const selectedFolderName = selectedFolder?.name?.toLowerCase();
+
+          const matchesId =
+            asset.folderId === selectedFolderId ||
+            (asset.parents && asset.parents.includes(selectedFolderId));
+          const matchesName =
+            selectedFolderName &&
+            asset.folderName?.toLowerCase() === selectedFolderName;
+
+          if (!matchesId && !matchesName) {
+            return false;
+          }
+        }
+
         // Search query filter
         if (filters.searchQuery.trim()) {
           const q = filters.searchQuery.toLowerCase().trim();
@@ -529,7 +558,7 @@ export default function App() {
             return 0;
         }
       });
-  }, [assets, filters]);
+  }, [assets, filters, selectedFolderId, driveFolders]);
 
   // Category counts breakdown
   const categoryStats = useMemo(() => {

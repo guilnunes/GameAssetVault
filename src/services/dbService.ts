@@ -13,6 +13,7 @@ import {
 import { getApps, initializeApp, getApp } from "firebase/app";
 import firebaseConfig from "../../firebase-applet-config.json";
 import { EnrichedAsset, AssetCollection, UserPreferences } from "../types";
+import { isGameAsset } from "./driveService";
 
 // Safe singleton Firebase app
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -44,7 +45,7 @@ export async function saveAssetToDb(
   userId: string,
   asset: EnrichedAsset
 ): Promise<void> {
-  if (!userId || !asset.id) return;
+  if (!userId || !asset.id || !isGameAsset(asset)) return;
   try {
     const assetRef = doc(db, ASSETS_COLLECTION, `${userId}_${asset.id}`);
     const now = new Date().toISOString();
@@ -86,15 +87,16 @@ export async function batchSaveAssetsToDb(
   userId: string,
   assets: EnrichedAsset[]
 ): Promise<number> {
-  if (!userId || assets.length === 0) return 0;
+  const gameAssets = assets.filter(isGameAsset);
+  if (!userId || gameAssets.length === 0) return 0;
   try {
     // Firestore batches are limited to 500 operations
     const CHUNK_SIZE = 400;
     let savedCount = 0;
     const now = new Date().toISOString();
 
-    for (let i = 0; i < assets.length; i += CHUNK_SIZE) {
-      const chunk = assets.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < gameAssets.length; i += CHUNK_SIZE) {
+      const chunk = gameAssets.slice(i, i + CHUNK_SIZE);
       const batch = writeBatch(db);
 
       for (const asset of chunk) {
@@ -151,7 +153,7 @@ export async function loadUserAssetsFromDb(userId: string): Promise<EnrichedAsse
 
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      loadedAssets.push({
+      const asset: EnrichedAsset = {
         id: data.id,
         name: data.name,
         category: data.category,
@@ -178,7 +180,15 @@ export async function loadUserAssetsFromDb(userId: string): Promise<EnrichedAsse
               summary: data.summary || "",
             }
           : undefined,
-      });
+      };
+
+      // Ensure loaded asset passes game asset criteria
+      if (isGameAsset(asset)) {
+        loadedAssets.push(asset);
+      } else {
+        // Cleanse legacy non-game files in background
+        deleteDoc(docSnap.ref).catch(() => {});
+      }
     });
 
     return loadedAssets;

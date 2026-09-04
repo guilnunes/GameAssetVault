@@ -4,6 +4,8 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
   User,
 } from "firebase/auth";
 import firebaseConfig from "../../firebase-applet-config.json";
@@ -12,13 +14,18 @@ import firebaseConfig from "../../firebase-applet-config.json";
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 
+// Ensure local persistence for user session across reloads and tab navigation
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn("Could not set local persistence:", err);
+});
+
 export const SCOPES = ["https://www.googleapis.com/auth/drive"];
 
 const provider = new GoogleAuthProvider();
 SCOPES.forEach((scope) => provider.addScope(scope));
+// Allow standard OAuth sign-in without forcing full consent prompts every time
 provider.setCustomParameters({
-  prompt: "consent",
-  access_type: "offline",
+  prompt: "select_account",
 });
 
 let isSigningIn = false;
@@ -26,17 +33,12 @@ let isSigningIn = false;
 let cachedAccessToken: string | null = null;
 
 export const initAuth = (
-  onAuthSuccess?: (user: User, token: string) => void,
+  onAuthSuccess?: (user: User, token: string | null) => void,
   onAuthFailure?: () => void
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      if (cachedAccessToken) {
-        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
-        // When user is restored from session, access token might need to be acquired
-        if (onAuthFailure) onAuthFailure();
-      }
+      if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
     } else {
       cachedAccessToken = null;
       if (onAuthFailure) onAuthFailure();
