@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   FolderSync,
+  Star,
 } from "lucide-react";
 import { User } from "firebase/auth";
 import { GoogleSignInButton } from "./GoogleSignInButton";
@@ -25,6 +26,10 @@ interface NavbarProps {
   onBatchAutoTag: () => void;
   isBatchTagging: boolean;
   isSampleMode: boolean;
+  isSyncOverdue?: boolean;
+  syncAgeInDays?: number | null;
+  onOpenManageFolders?: () => void;
+  importantFolderCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -38,6 +43,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onBatchAutoTag,
   isBatchTagging,
   isSampleMode,
+  isSyncOverdue = false,
+  syncAgeInDays = null,
+  onOpenManageFolders,
+  importantFolderCount = 0,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
@@ -104,6 +113,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </button>
 
+          {/* Important Folders Button */}
+          {onOpenManageFolders && (
+            <button
+              id="open-manage-folders-navbar-button"
+              type="button"
+              onClick={onOpenManageFolders}
+              className="inline-flex items-center gap-1.5 h-9 px-3 lg:px-3.5 rounded-xl border border-amber-300/80 dark:border-amber-700/60 bg-amber-50/80 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer shadow-2xs"
+              title="Define important folders to focus searches and reduce scan time"
+            >
+              <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+              <span className="hidden lg:inline">Important Folders</span>
+              <span className="lg:hidden">Important</span>
+              {importantFolderCount > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-200 dark:bg-amber-800/80 text-amber-950 dark:text-amber-100 font-bold">
+                  {importantFolderCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Organize Folders Button */}
           <button
             id="open-organize-modal-button"
@@ -167,11 +196,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     type="button"
                     onClick={onSignIn}
-                    className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium text-left truncate cursor-pointer flex items-center gap-1"
-                    title="Connect live Drive sync"
+                    className={`text-[10px] hover:underline font-medium text-left truncate cursor-pointer flex items-center gap-1 ${
+                      isSyncOverdue
+                        ? "text-amber-600 dark:text-amber-400 font-semibold"
+                        : "text-indigo-600 dark:text-indigo-400"
+                    }`}
+                    title={
+                      isSyncOverdue && syncAgeInDays !== null
+                        ? `Last synced ${syncAgeInDays} days ago. Click to sync live Drive.`
+                        : "Connect live Drive sync"
+                    }
                   >
-                    <FolderSync className="w-3 h-3 text-indigo-500" />
-                    <span>Sync Live Drive</span>
+                    <FolderSync className={`w-3 h-3 ${isSyncOverdue ? "text-amber-500 animate-pulse" : "text-indigo-500"}`} />
+                    <span>{isSyncOverdue && syncAgeInDays !== null ? `Sync (${syncAgeInDays}d ago)` : "Sync Live Drive"}</span>
                   </button>
                 )}
               </div>
@@ -317,10 +354,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                         setIsMobileMenuOpen(false);
                         onSignIn();
                       }}
-                      className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium hover:underline flex items-center gap-1"
+                      className={`text-[10px] font-medium hover:underline flex items-center gap-1 ${
+                        isSyncOverdue
+                          ? "text-amber-600 dark:text-amber-400 font-semibold"
+                          : "text-indigo-600 dark:text-indigo-400"
+                      }`}
                     >
-                      <FolderSync className="w-3 h-3 text-indigo-500" />
-                      Sync Live Drive
+                      <FolderSync className={`w-3 h-3 ${isSyncOverdue ? "text-amber-500 animate-pulse" : "text-indigo-500"}`} />
+                      <span>{isSyncOverdue && syncAgeInDays !== null ? `Sync (${syncAgeInDays}d ago)` : "Sync Live Drive"}</span>
                     </button>
                   )}
                   <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-1">
@@ -344,6 +385,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Quick Action Buttons */}
           <div className="grid grid-cols-2 gap-2 pt-1">
+            {onOpenManageFolders && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onOpenManageFolders();
+                }}
+                className="col-span-2 flex items-center justify-center gap-2 min-h-[44px] py-2.5 px-3 rounded-xl border border-amber-300/80 dark:border-amber-700/60 bg-amber-50/80 dark:bg-amber-950/30 text-xs font-semibold text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/50 cursor-pointer"
+              >
+                <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                <span>Manage Important Folders</span>
+                {importantFolderCount > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-950 dark:text-amber-100 font-bold">
+                    {importantFolderCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {

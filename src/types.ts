@@ -64,6 +64,9 @@ export interface UserPreferences {
   defaultSortBy: "name" | "modifiedTime" | "size" | "category";
   selectedDriveFolder?: string;
   savedFolders?: Array<{ id: string; name: string }>;
+  importantFolderIds?: string[];
+  scanScope?: "important" | "all";
+  lastDriveSyncTime?: string;
   updatedAt?: string;
 }
 

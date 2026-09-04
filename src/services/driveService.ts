@@ -219,15 +219,97 @@ export function enrichDriveAsset(item: DriveFileItem, folderName?: string): Enri
   };
 }
 
-// Fetch files from Google Drive
+// Fetch files from Google Drive (supports scanning targeted important folders or single folder or entire drive)
 export async function fetchDriveFiles(
   token: string,
   options?: {
     parentFolderId?: string;
+    parentFolderIds?: string[];
     searchTerm?: string;
     onlyGameAssets?: boolean;
   }
 ): Promise<EnrichedAsset[]> {
+  // If multiple specific folders are requested (e.g. user-defined Important Folders),
+  // batch them into groups of up to 10 to respect Drive API query limits
+  if (options?.parentFolderIds && options.parentFolderIds.length > 0) {
+    const validFolderIds = options.parentFolderIds.filter(
+      (id) => Boolean(id) && id !== "all"
+    );
+
+    if (validFolderIds.length === 0) {
+      return [];
+    }
+
+    // Process in chunks of 10 folders per query
+    const chunkSize = 10;
+    const chunks: string[][] = [];
+    for (let i = 0; i < validFolderIds.length; i += chunkSize) {
+      chunks.push(validFolderIds.slice(i, i + chunkSize));
+    }
+
+    const results = await Promise.all(
+      chunks.map(async (folderChunk) => {
+        const queryParts = [
+          "trashed = false",
+          "mimeType != 'application/vnd.google-apps.folder'",
+          "mimeType != 'application/vnd.google-apps.document'",
+          "mimeType != 'application/vnd.google-apps.spreadsheet'",
+          "mimeType != 'application/vnd.google-apps.presentation'",
+          "mimeType != 'application/vnd.google-apps.form'",
+          "mimeType != 'application/vnd.google-apps.shortcut'",
+          "mimeType != 'application/vnd.google-apps.drawing'",
+        ];
+
+        if (folderChunk.length === 1) {
+          queryParts.push(`'${folderChunk[0]}' in parents`);
+        } else {
+          const parentClauses = folderChunk
+            .map((id) => `'${id}' in parents`)
+            .join(" or ");
+          queryParts.push(`(${parentClauses})`);
+        }
+
+        if (options.searchTerm?.trim()) {
+          const escaped = options.searchTerm.replace(/'/g, "\\'");
+          queryParts.push(`name contains '${escaped}'`);
+        }
+
+        const query = queryParts.join(" and ");
+        const fields =
+          "files(id, name, mimeType, size, modifiedTime, thumbnailLink, webViewLink, iconLink, parents, description, properties, appProperties)";
+        const url = `${DRIVE_API_BASE}/files?q=${encodeURIComponent(
+          query
+        )}&fields=${encodeURIComponent(fields)}&pageSize=100&orderBy=modifiedTime desc`;
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Google Drive API error (${res.status}): ${errText}`);
+        }
+
+        const json = await res.json();
+        const rawFiles: DriveFileItem[] = json.files || [];
+        return rawFiles.filter(isGameAsset).map((item) => enrichDriveAsset(item));
+      })
+    );
+
+    // Flatten and deduplicate by file ID
+    const seen = new Set<string>();
+    const combined: EnrichedAsset[] = [];
+    for (const subList of results) {
+      for (const asset of subList) {
+        if (!seen.has(asset.id)) {
+          seen.add(asset.id);
+          combined.push(asset);
+        }
+      }
+    }
+    return combined;
+  }
+
   const queryParts = [
     "trashed = false",
     "mimeType != 'application/vnd.google-apps.folder'",
