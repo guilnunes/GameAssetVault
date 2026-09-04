@@ -18,12 +18,15 @@ import {
 import { EnrichedAsset, AssetCategory, SmartMetadata } from "../types";
 import { CATEGORIES, getCategoryInfo, formatFileSize } from "../data/categories";
 import { updateDriveAssetMetadata, generateClientSmartMetadata } from "../services/driveService";
+import { saveAssetToDb } from "../services/dbService";
+import { Star, Database } from "lucide-react";
 
 interface AssetDetailModalProps {
   asset: EnrichedAsset | null;
   onClose: () => void;
   onUpdateAsset: (updated: EnrichedAsset) => void;
   accessToken: string | null;
+  userId?: string | null;
   onPlayAudio?: (asset: EnrichedAsset) => void;
   isPlayingAudio?: boolean;
 }
@@ -33,6 +36,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
   onClose,
   onUpdateAsset,
   accessToken,
+  userId,
   onPlayAudio,
   isPlayingAudio = false,
 }) => {
@@ -43,6 +47,8 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
     const list = [...asset.userTags, ...(asset.smart?.smartTags || [])];
     return Array.from(new Set(list.map((t) => t.replace(/^#/, "").toLowerCase())));
   });
+  const [notes, setNotes] = useState<string>(asset.notes || "");
+  const [isFavorite, setIsFavorite] = useState<boolean>(Boolean(asset.isFavorite));
   const [newTagInput, setNewTagInput] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -147,12 +153,26 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
         category: currentCategory,
         userTags: tags,
         smart: smartMeta,
+        notes,
+        isFavorite,
+        userId: userId || asset.userId,
+        updatedAt: new Date().toISOString(),
       };
+
+      // Persist to Cloud Firestore database if authenticated
+      if (userId) {
+        try {
+          await saveAssetToDb(userId, updated);
+        } catch (dbErr) {
+          console.warn("Could not persist to Firestore:", dbErr);
+        }
+      }
+
       onUpdateAsset(updated);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (err: any) {
-      alert(`Error saving to Google Drive: ${err.message}`);
+      alert(`Error saving metadata: ${err.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -161,42 +181,58 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
   return (
     <div
       id="asset-detail-modal-backdrop"
-      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
         id="asset-detail-modal-dialog"
-        className="relative w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="relative w-full sm:max-w-4xl bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md z-20">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${categoryInfo.bgLight}`}
+              className={`text-xs font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border ${categoryInfo.bgLight} flex-shrink-0`}
             >
               {categoryInfo.label}
             </span>
-            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 truncate">
+            <h2 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 truncate">
               {asset.name}
             </h2>
           </div>
 
-          <button
-            id="close-detail-modal-button"
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <button
+              id="modal-toggle-favorite-button"
+              type="button"
+              onClick={() => setIsFavorite(!isFavorite)}
+              className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
+                isFavorite
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                  : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+              }`}
+              title={isFavorite ? "Favorited (Stored in Database)" : "Mark as Favorite"}
+            >
+              <Star className={`w-4 h-4 ${isFavorite ? "fill-amber-500 text-amber-500" : ""}`} />
+            </button>
+
+            <button
+              id="close-detail-modal-button"
+              type="button"
+              onClick={onClose}
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6">
           {/* Left Column: Asset Media Preview */}
           <div className="md:col-span-6 flex flex-col gap-3">
-            <div className="relative w-full h-72 sm:h-80 bg-zinc-950 rounded-2xl border border-zinc-800 flex items-center justify-center overflow-hidden">
+            <div className="relative w-full h-60 sm:h-80 bg-zinc-950 rounded-2xl border border-zinc-800 flex items-center justify-center overflow-hidden">
               {/* Alpha checkerboard pattern */}
               <div
                 className="absolute inset-0 opacity-25 pointer-events-none"
@@ -269,7 +305,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.25))}
-                    className="p-1 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-700 dark:text-zinc-300"
+                    className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-700 dark:text-zinc-300"
                     title="Zoom Out"
                   >
                     <ZoomOut className="w-4 h-4" />
@@ -280,14 +316,14 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setZoomLevel((z) => Math.min(4, z + 0.25))}
-                    className="p-1 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-700 dark:text-zinc-300"
+                    className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-700 dark:text-zinc-300"
                     title="Zoom In"
                   >
                     <ZoomIn className="w-4 h-4" />
                   </button>
                 </div>
 
-                <label className="flex items-center gap-2 cursor-pointer select-none">
+                <label className="flex items-center gap-2 cursor-pointer select-none min-h-[36px]">
                   <input
                     type="checkbox"
                     checked={pixelated}
@@ -409,7 +445,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                 id="modal-category-select"
                 value={currentCategory}
                 onChange={(e) => setCurrentCategory(e.target.value as AssetCategory)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full min-h-[44px] px-3 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat.id} value={cat.id}>
@@ -436,15 +472,15 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                 {tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-medium border border-zinc-200 dark:border-zinc-700 shadow-xs"
+                    className="inline-flex items-center gap-1.5 min-h-[34px] px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-medium border border-zinc-200 dark:border-zinc-700 shadow-xs"
                   >
                     <span>#{tag}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
-                      className="text-zinc-400 hover:text-rose-500 transition-colors ml-0.5"
+                      className="min-h-[28px] min-w-[28px] flex items-center justify-center text-zinc-400 hover:text-rose-500 transition-colors"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </span>
                 ))}
@@ -456,24 +492,50 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                   type="text"
                   value={newTagInput}
                   onChange={(e) => setNewTagInput(e.target.value)}
-                  placeholder="Add custom tag (e.g. boss-battle, pixel, foley)..."
-                  className="flex-1 px-3 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                  placeholder="Add custom tag (e.g. boss-battle, pixel)..."
+                  className="flex-1 min-h-[44px] px-3 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                 />
                 <button
                   type="submit"
                   disabled={!newTagInput.trim()}
-                  className="px-3.5 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-xs font-semibold transition-colors disabled:opacity-40 cursor-pointer"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-xs font-semibold transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
               </form>
+              {/* Developer Notes (Persists in Cloud Firestore) */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <Database className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Developer Notes & Engine Specs</span>
+                  </label>
+                  {userId ? (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      Cloud DB Active
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-zinc-400">
+                      Sign in to sync with Cloud DB
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  id="asset-developer-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Notes for game devs: loop points, tile bounds, audio channel, licensing info, usage tips..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 resize-y"
+                />
+              </div>
             </div>
 
             {/* Modal Footer: Save changes */}
-            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
+            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between gap-2">
               {saveSuccess && (
                 <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                  <Check className="w-4 h-4" /> Saved to Google Drive!
+                  <Check className="w-4 h-4" /> Saved!
                 </span>
               )}
               {!saveSuccess && <div />}
@@ -482,7 +544,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   Close
                 </button>
@@ -492,10 +554,10 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                   type="button"
                   onClick={handleSaveMetadata}
                   disabled={isSaving}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 min-h-[44px] px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>{isSaving ? "Saving..." : "Save to Google Drive"}</span>
+                  <span>{isSaving ? "Saving..." : "Save to Database"}</span>
                 </button>
               </div>
             </div>

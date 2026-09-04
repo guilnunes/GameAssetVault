@@ -181,7 +181,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   return (
     <div
       id="game-asset-audio-player-bar"
-      className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-900/95 border-t border-zinc-800 text-zinc-100 backdrop-blur-md px-4 sm:px-8 py-3 shadow-2xl transition-all"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 border-t border-zinc-800 text-zinc-100 backdrop-blur-lg shadow-2xl transition-all"
     >
       <audio
         ref={audioRef}
@@ -195,29 +195,49 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
         onError={() => setHasError(true)}
       />
 
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-        {/* Track info */}
-        <div className="flex items-center gap-3 w-full sm:w-1/3 min-w-0">
-          <div className="w-10 h-10 rounded-lg bg-violet-500/20 text-violet-400 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
-            <Music className="w-5 h-5" />
+      {/* Thin full-width progress bar at the very top of the audio bar for instant visual progress on all screens */}
+      <div
+        className="w-full h-1 bg-zinc-800 cursor-pointer relative group"
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const pos = (e.clientX - rect.left) / rect.width;
+          const target = pos * (duration || 0);
+          setCurrentTime(target);
+          if (audioRef.current) audioRef.current.currentTime = target;
+        }}
+      >
+        <div
+          className="h-full bg-indigo-500 transition-all"
+          style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
+        />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
+        {/* Track Info */}
+        <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:w-1/3 sm:flex-initial">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-violet-500/20 text-violet-400 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+            <Music className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-white truncate">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs sm:text-sm font-semibold text-white truncate max-w-[140px] xs:max-w-[180px] sm:max-w-none">
                 {asset.name}
               </span>
-              <span className="text-[11px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider bg-zinc-800 text-zinc-400">
+              <span className="text-[10px] px-1.5 py-0.2 rounded uppercase font-bold tracking-wider bg-zinc-800 text-zinc-400 flex-shrink-0">
                 {asset.extension}
               </span>
             </div>
-            <p className="text-xs text-zinc-400 truncate">
-              {asset.smart?.moodStyle || categoryInfo.label}
-            </p>
+            <div className="flex items-center gap-2 text-[11px] text-zinc-400 truncate">
+              <span className="truncate">{asset.smart?.moodStyle || categoryInfo.label}</span>
+              <span className="text-zinc-500 font-mono sm:hidden">
+                {formatSeconds(currentTime)} / {formatSeconds(duration)}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Playback controls & timeline */}
-        <div className="flex flex-col items-center gap-1.5 w-full sm:w-1/2">
+        {/* Desktop Timeline & Center Controls */}
+        <div className="hidden sm:flex flex-col items-center gap-1 flex-1 max-w-md">
           <div className="flex items-center gap-4">
             <button
               id="audio-rewind-button"
@@ -225,7 +245,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               onClick={() => {
                 if (audioRef.current) audioRef.current.currentTime = 0;
               }}
-              className="p-1.5 text-zinc-400 hover:text-white transition-colors"
+              className="min-h-[36px] min-w-[36px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
               title="Restart"
             >
               <RotateCcw className="w-4 h-4" />
@@ -235,30 +255,30 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               id="audio-play-toggle-button"
               type="button"
               onClick={togglePlay}
-              className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-md transition-all active:scale-95"
+              className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-md transition-all active:scale-95 cursor-pointer"
             >
               {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
             </button>
 
-            {/* Loop Toggle - essential for game development! */}
+            {/* Loop Toggle */}
             <button
               id="audio-loop-toggle-button"
               type="button"
               onClick={toggleLoop}
-              className={`p-1.5 rounded-md flex items-center gap-1 text-xs transition-colors ${
+              className={`min-h-[36px] px-2.5 rounded-lg flex items-center gap-1 text-xs transition-colors cursor-pointer ${
                 isLooping
-                  ? "text-emerald-400 bg-emerald-500/10 font-medium"
+                  ? "text-emerald-400 bg-emerald-500/10 font-semibold"
                   : "text-zinc-500 hover:text-zinc-300"
               }`}
-              title={isLooping ? "Seamless Game Loop: Enabled" : "Loop: Disabled"}
+              title={isLooping ? "Game Loop: ON" : "Game Loop: OFF"}
             >
               <Repeat className="w-4 h-4" />
-              <span className="hidden md:inline">Loop</span>
+              <span>Loop</span>
             </button>
           </div>
 
           <div className="w-full flex items-center gap-2 text-xs text-zinc-400">
-            <span className="w-10 text-right tabular-nums">{formatSeconds(currentTime)}</span>
+            <span className="w-10 text-right tabular-nums font-mono">{formatSeconds(currentTime)}</span>
             <input
               id="audio-seek-slider"
               type="range"
@@ -269,22 +289,50 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               onChange={handleSeek}
               className="flex-1 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
             />
-            <span className="w-10 tabular-nums">{formatSeconds(duration)}</span>
+            <span className="w-10 tabular-nums font-mono">{formatSeconds(duration)}</span>
           </div>
-          {hasError && (
-            <span className="text-[11px] text-amber-400">
-              Note: Direct stream preview limited by audio codec or permission.
-            </span>
-          )}
         </div>
 
-        {/* Volume & Close */}
-        <div className="flex items-center justify-end gap-3 w-full sm:w-1/4">
-          <div className="hidden lg:flex items-center gap-2">
+        {/* Mobile Controls Right Side */}
+        <div className="flex sm:hidden items-center gap-1 flex-shrink-0">
+          <button
+            type="button"
+            onClick={toggleLoop}
+            className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl transition-colors ${
+              isLooping
+                ? "text-emerald-400 bg-emerald-500/15"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+            title="Loop"
+          >
+            <Repeat className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="min-h-[44px] min-w-[44px] rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+          >
+            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-white"
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Desktop Volume & Close */}
+        <div className="hidden sm:flex items-center justify-end gap-3 sm:w-1/3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={toggleMute}
-              className="text-zinc-400 hover:text-white"
+              className="min-h-[36px] min-w-[36px] flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
@@ -296,7 +344,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               step={0.05}
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
-              className="w-18 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              className="w-16 lg:w-20 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
             />
           </div>
 
@@ -304,7 +352,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
             id="audio-player-close-button"
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors ml-2"
+            className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors ml-1 cursor-pointer"
             title="Close Player"
           >
             <X className="w-5 h-5" />

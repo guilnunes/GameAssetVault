@@ -39,6 +39,29 @@ export interface EnrichedAsset extends DriveFileItem {
   isFolder: boolean;
   smart?: SmartMetadata;
   userTags: string[];
+  isFavorite?: boolean;
+  notes?: string;
+  updatedAt?: string;
+  userId?: string;
+}
+
+export interface AssetCollection {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  assetIds: string[];
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserPreferences {
+  userId: string;
+  defaultViewMode: "grid" | "list";
+  defaultSortBy: "name" | "modifiedTime" | "size" | "category";
+  selectedDriveFolder?: string;
+  updatedAt?: string;
 }
 
 export interface CategoryInfo {
@@ -61,6 +84,7 @@ export interface SearchFilterState {
   sortBy: "name" | "modifiedTime" | "size" | "category";
   sortOrder: "asc" | "desc";
   viewMode: "grid" | "list";
+  onlyFavorites?: boolean;
 }
 
 export interface SmartSearchResponse {

@@ -150,26 +150,26 @@ export const OrganizeModal: React.FC<OrganizeModalProps> = ({
   return (
     <div
       id="organize-modal-backdrop"
-      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto"
       onClick={() => !isProcessing && onClose()}
     >
       <div
         id="organize-modal-dialog"
-        className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden p-6 space-y-5"
+        className="relative w-full sm:max-w-2xl bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-600 text-white">
+        <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-3 sm:pb-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-indigo-600 text-white flex-shrink-0">
               <FolderPlus className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 truncate">
                 Organize Game Assets on Google Drive
               </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Auto-sort your loose drive files into clean game development folder structures
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate sm:whitespace-normal">
+                Auto-sort your loose drive files into clean game engine folders
               </p>
             </div>
           </div>
@@ -178,7 +178,7 @@ export const OrganizeModal: React.FC<OrganizeModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 flex-shrink-0 ml-1"
             >
               <X className="w-5 h-5" />
             </button>
@@ -188,7 +188,7 @@ export const OrganizeModal: React.FC<OrganizeModalProps> = ({
         {/* Confirmation Screen */}
         {showConfirmation ? (
           <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200">
               <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <div>
                 <strong className="font-semibold block text-sm mb-1">
@@ -238,12 +238,12 @@ export const OrganizeModal: React.FC<OrganizeModalProps> = ({
             )}
 
             {/* Confirmation Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
               <button
                 type="button"
                 disabled={isProcessing}
                 onClick={() => setShowConfirmation(false)}
-                className="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 disabled:opacity-50"
+                className="min-h-[44px] px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 text-center"
               >
                 Back
               </button>
@@ -253,7 +253,7 @@ export const OrganizeModal: React.FC<OrganizeModalProps> = ({
                 type="button"
                 disabled={isProcessing}
                 onClick={handleConfirmAndExecute}
-                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-all disabled:opacity-50"
+                className="min-h-[44px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-all disabled:opacity-50"
               >
                 {isProcessing ? (
                   <>
@@ -277,27 +277,27 @@ export const OrganizeModal: React.FC<OrganizeModalProps> = ({
               Drive and sort your assets according to their smart category:
             </p>
 
-            <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+            <div className="max-h-60 sm:max-h-64 overflow-y-auto space-y-2 pr-1">
               {folderPlan.map(([folderName, files]) => (
                 <div
                   key={folderName}
                   className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 text-xs"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Folder className="w-4 h-4 text-indigo-500" />
-                    <span className="font-mono font-medium text-zinc-800 dark:text-zinc-200">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Folder className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                    <span className="font-mono font-medium text-zinc-800 dark:text-zinc-200 truncate">
                       GameAssets/{folderName}/
                     </span>
                   </div>
-                  <span className="text-zinc-500">
+                  <span className="text-zinc-500 flex-shrink-0 ml-2">
                     <strong>{files.length}</strong> asset(s)
                   </span>
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
-              <span className="text-xs text-zinc-500">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
+              <span className="text-xs text-zinc-500 text-center sm:text-left">
                 Total to organize: <strong>{totalFilesToOrganize} files</strong>
               </span>
 
@@ -306,7 +306,7 @@ export const OrganizeModal: React.FC<OrganizeModalProps> = ({
                 type="button"
                 onClick={handleStartOrganize}
                 disabled={totalFilesToOrganize === 0}
-                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-40"
+                className="min-h-[44px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-40"
               >
                 <span>Continue to Organize</span>
                 <ArrowRight className="w-4 h-4" />

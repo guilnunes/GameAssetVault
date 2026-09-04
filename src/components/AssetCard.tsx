@@ -13,6 +13,8 @@ import {
   Box,
   Type,
   FileText,
+  Star,
+  StickyNote,
 } from "lucide-react";
 import { EnrichedAsset } from "../types";
 import { getCategoryInfo, formatFileSize } from "../data/categories";
@@ -23,6 +25,7 @@ interface AssetCardProps {
   onPlayAudio?: (asset: EnrichedAsset) => void;
   onInspect: (asset: EnrichedAsset) => void;
   onTagClick: (tag: string) => void;
+  onToggleFavorite?: (asset: EnrichedAsset) => void;
   accessToken?: string | null;
 }
 
@@ -32,6 +35,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({
   onPlayAudio,
   onInspect,
   onTagClick,
+  onToggleFavorite,
   accessToken,
 }) => {
   const categoryInfo = getCategoryInfo(asset.category);
@@ -151,17 +155,37 @@ export const AssetCard: React.FC<AssetCardProps> = ({
           </div>
         )}
 
-        {/* Top Badges: Category & Format */}
-        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10">
+        {/* Top Badges: Category, Format & Favorite */}
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20">
           <span
-            className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${categoryInfo.bgLight}`}
+            className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border pointer-events-none ${categoryInfo.bgLight}`}
           >
             {categoryInfo.label.split(" ")[0]}
           </span>
 
-          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-zinc-900/80 text-white backdrop-blur-xs">
-            {asset.extension || "FILE"}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {onToggleFavorite && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite(asset);
+                }}
+                className={`min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg backdrop-blur-xs transition-colors cursor-pointer ${
+                  asset.isFavorite
+                    ? "bg-amber-500 text-white shadow-xs"
+                    : "bg-zinc-900/60 text-zinc-300 hover:text-amber-300 hover:bg-zinc-900/80"
+                }`}
+                title={asset.isFavorite ? "Favorited (Stored in DB)" : "Mark Favorite"}
+              >
+                <Star className={`w-3.5 h-3.5 ${asset.isFavorite ? "fill-white" : ""}`} />
+              </button>
+            )}
+
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-md bg-zinc-900/80 text-white backdrop-blur-xs pointer-events-none">
+              {asset.extension || "FILE"}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -214,15 +238,25 @@ export const AssetCard: React.FC<AssetCardProps> = ({
 
         {/* Bottom meta & action bar */}
         <div className="pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-          <span className="tabular-nums">{formatFileSize(asset.size)}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="tabular-nums">{formatFileSize(asset.size)}</span>
+            {asset.notes && (
+              <span
+                className="inline-flex items-center text-indigo-500 dark:text-indigo-400"
+                title="Has Developer Notes"
+              >
+                <StickyNote className="w-3 h-3" />
+              </span>
+            )}
+          </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {asset.webViewLink && (
               <a
                 href={asset.webViewLink}
                 target="_blank"
                 rel="noreferrer"
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 title="Open in Google Drive"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -232,7 +266,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({
             <button
               type="button"
               onClick={() => onInspect(asset)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-medium transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 min-h-[36px] px-3 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-medium transition-colors cursor-pointer"
             >
               <Info className="w-3.5 h-3.5" />
               <span>Inspect</span>

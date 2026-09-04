@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "vault_assets": {
+      "title": "Vault Asset",
+      "description": "Game assets saved in the user's vault with tags, smart AI metadata, user notes, and project organization",
+      "fields": {
+        "id": { "type": "string", "description": "Asset ID" },
+        "name": { "type": "string", "description": "Asset file name" },
+        "category": { "type": "string", "description": "Asset category (imagery, music, sound, ui, 3d, fonts, etc.)" },
+        "subCategory": { "type": "string", "description": "Sub-category classification", "optional": true },
+        "extension": { "type": "string", "description": "File extension without dot" },
+        "fileSize": { "type": "number", "description": "File size in bytes", "optional": true },
+        "mimeType": { "type": "string", "description": "MIME type" },
+        "thumbnailLink": { "type": "string", "description": "Thumbnail preview URL", "optional": true },
+        "webViewLink": { "type": "string", "description": "Link to Drive or external file", "optional": true },
+        "userTags": { "type": "array", "description": "Custom user-assigned tags" },
+        "smartTags": { "type": "array", "description": "AI-generated semantic tags", "optional": true },
+        "moodStyle": { "type": "string", "description": "Detected mood or aesthetic style", "optional": true },
+        "suggestedFolder": { "type": "string", "description": "Recommended game project directory", "optional": true },
+        "summary": { "type": "string", "description": "Asset description summary", "optional": true },
+        "isFavorite": { "type": "boolean", "description": "Flag indicating if item is pinned as favorite" },
+        "notes": { "type": "string", "description": "Custom game developer notes and instructions", "optional": true },
+        "userId": { "type": "string", "description": "Owner Google User ID" },
+        "createdAt": { "type": "string", "description": "ISO timestamp when created" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp when last modified" }
+      }
+    },
+    "asset_collections": {
+      "title": "Asset Collection",
+      "description": "Custom game asset bundles, project packs, or level asset collections",
+      "fields": {
+        "id": { "type": "string", "description": "Collection ID" },
+        "name": { "type": "string", "description": "Collection name" },
+        "description": { "type": "string", "description": "Collection description", "optional": true },
+        "color": { "type": "string", "description": "Color accent tag", "optional": true },
+        "assetIds": { "type": "array", "description": "Array of asset IDs contained in this collection" },
+        "userId": { "type": "string", "description": "Owner Google User ID" },
+        "createdAt": { "type": "string", "description": "ISO timestamp when created" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp when last modified" }
+      }
+    },
+    "user_preferences": {
+      "title": "User Preferences",
+      "description": "User preferences for layout, sorting, and last accessed folder",
+      "fields": {
+        "userId": { "type": "string", "description": "User ID" },
+        "defaultViewMode": { "type": "string", "description": "Default view layout: grid or list" },
+        "defaultSortBy": { "type": "string", "description": "Default sort attribute" },
+        "selectedDriveFolder": { "type": "string", "description": "ID of last opened Google Drive folder", "optional": true },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
+      }
+    }
+  }
+}

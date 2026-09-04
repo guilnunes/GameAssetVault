@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Search, Sparkles, X, SlidersHorizontal, Grid, List, ArrowDownAZ, ArrowUpAZ, Clock, HardDrive } from "lucide-react";
+import { Search, Sparkles, X, SlidersHorizontal, Grid, List, ArrowDownAZ, ArrowUpAZ, Clock, HardDrive, Star } from "lucide-react";
 import { SearchFilterState, SmartSearchResponse } from "../types";
 
 interface SearchBarProps {
@@ -60,15 +60,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   ];
 
   return (
-    <div id="game-asset-search-section" className="w-full space-y-3">
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+    <div id="game-asset-search-section" className="w-full space-y-2.5">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
         {/* Search input with AI intelligence */}
         <form
           onSubmit={handleSearchSubmit}
           className="relative flex-1 flex items-center"
         >
           <div className="absolute left-3.5 text-zinc-400 pointer-events-none">
-            <Search className="w-5 h-5" />
+            <Search className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <input
             id="game-asset-search-input"
@@ -77,11 +77,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             onChange={(e) =>
               onFilterChange({ ...filters, searchQuery: e.target.value })
             }
-            placeholder="Search game assets by name, #tag, or natural prompt (e.g. 'retro battle music')..."
-            className="w-full pl-11 pr-24 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-xs"
+            placeholder="Search assets, #tags, or prompts (e.g. 'boss music')..."
+            className="w-full min-h-[44px] pl-10 sm:pl-11 pr-24 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-xs"
           />
 
-          <div className="absolute right-2.5 flex items-center gap-1.5">
+          <div className="absolute right-1.5 flex items-center gap-1">
             {filters.searchQuery && (
               <button
                 id="search-clear-button"
@@ -90,7 +90,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   onFilterChange({ ...filters, searchQuery: "" });
                   setAiAnalysis(null);
                 }}
-                className="p-1 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 title="Clear search"
               >
                 <X className="w-4 h-4" />
@@ -101,18 +101,19 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               id="gemini-smart-search-trigger"
               type="submit"
               disabled={isAiSearching || !filters.searchQuery.trim()}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-xs font-semibold border border-indigo-200 dark:border-indigo-800 transition-all disabled:opacity-40 cursor-pointer"
+              className="inline-flex items-center gap-1 min-h-[36px] px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-xs font-semibold border border-indigo-200 dark:border-indigo-800 transition-all disabled:opacity-40 cursor-pointer"
               title="Enhance search with Gemini AI"
             >
               <Sparkles className={`w-3.5 h-3.5 ${isAiSearching ? "animate-spin" : ""}`} />
-              <span className="hidden md:inline">AI Filter</span>
+              <span className="hidden xs:inline">AI Filter</span>
             </button>
           </div>
         </form>
 
-        {/* Sort & View toggles */}
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          <div className="relative">
+        {/* Sort, Favorites & View toggles */}
+        <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
+          {/* Sort Dropdown */}
+          <div className="relative flex-1 sm:flex-initial">
             <select
               id="asset-sort-select"
               value={`${filters.sortBy}-${filters.sortOrder}`}
@@ -123,7 +124,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 ];
                 onFilterChange({ ...filters, sortBy, sortOrder });
               }}
-              className="px-3 py-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-xs"
+              className="w-full sm:w-auto min-h-[44px] px-3 py-2 text-xs font-medium rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-xs"
             >
               <option value="name-asc">Name (A-Z)</option>
               <option value="name-desc">Name (Z-A)</option>
@@ -135,14 +136,44 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             </select>
           </div>
 
-          <div className="flex items-center rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-0.5 shadow-xs">
+          {/* Favorites toggle */}
+          <button
+            id="filter-favorites-toggle"
+            type="button"
+            onClick={() =>
+              onFilterChange({
+                ...filters,
+                onlyFavorites: !filters.onlyFavorites,
+              })
+            }
+            className={`inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+              filters.onlyFavorites
+                ? "bg-amber-500 text-white border-amber-600 shadow-xs"
+                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-amber-400"
+            }`}
+            title={
+              filters.onlyFavorites
+                ? "Showing Favorites Only (Click to show all)"
+                : "Filter by Favorites (Saved in Database)"
+            }
+          >
+            <Star
+              className={`w-4 h-4 ${
+                filters.onlyFavorites ? "fill-white" : "text-amber-500"
+              }`}
+            />
+            <span className="hidden xs:inline">Favorites</span>
+          </button>
+
+          {/* Grid/List View toggle */}
+          <div className="flex items-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-0.5 shadow-xs">
             <button
               id="view-mode-grid"
               type="button"
               onClick={() => onFilterChange({ ...filters, viewMode: "grid" })}
-              className={`p-1.5 rounded-md transition-colors ${
+              className={`min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg transition-colors ${
                 filters.viewMode === "grid"
-                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold"
                   : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
               }`}
               title="Grid View"
@@ -153,9 +184,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               id="view-mode-list"
               type="button"
               onClick={() => onFilterChange({ ...filters, viewMode: "list" })}
-              className={`p-1.5 rounded-md transition-colors ${
+              className={`min-h-[40px] min-w-[40px] flex items-center justify-center rounded-lg transition-colors ${
                 filters.viewMode === "list"
-                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold"
                   : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
               }`}
               title="List View"
@@ -166,10 +197,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         </div>
       </div>
 
-      {/* Quick Prompts & AI feedback */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-medium text-zinc-400 dark:text-zinc-500">Quick queries:</span>
+      {/* Quick Prompts & Count Bar */}
+      <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 whitespace-nowrap -mx-1 px-1">
+          <span className="font-medium text-zinc-400 dark:text-zinc-500 flex-shrink-0 text-[11px]">
+            Suggestions:
+          </span>
           {quickPrompts.map((prompt) => (
             <button
               key={prompt}
@@ -178,14 +211,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 onFilterChange({ ...filters, searchQuery: prompt });
                 setTimeout(() => handleSearchSubmit(), 50);
               }}
-              className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors"
+              className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs transition-colors flex-shrink-0 cursor-pointer"
             >
               {prompt}
             </button>
           ))}
         </div>
 
-        <div className="tabular-nums">
+        <div className="tabular-nums text-[11px] sm:text-xs text-zinc-500 self-end xs:self-auto flex-shrink-0">
           Showing <strong className="text-zinc-800 dark:text-zinc-200">{filteredCount}</strong> of {totalCount} assets
         </div>
       </div>

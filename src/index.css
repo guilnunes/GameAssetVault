@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+@layer utilities {
+  /* Smooth horizontal touch scrolling for mobile devices */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Safe touch target helpers */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}

@@ -11,6 +11,8 @@ import {
   Box,
   Type,
   FileText,
+  Star,
+  StickyNote,
 } from "lucide-react";
 import { EnrichedAsset } from "../types";
 import { getCategoryInfo, formatFileSize } from "../data/categories";
@@ -21,6 +23,7 @@ interface AssetRowProps {
   onPlayAudio?: (asset: EnrichedAsset) => void;
   onInspect: (asset: EnrichedAsset) => void;
   onTagClick: (tag: string) => void;
+  onToggleFavorite?: (asset: EnrichedAsset) => void;
 }
 
 export const AssetRow: React.FC<AssetRowProps> = ({
@@ -29,6 +32,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
   onPlayAudio,
   onInspect,
   onTagClick,
+  onToggleFavorite,
 }) => {
   const categoryInfo = getCategoryInfo(asset.category);
   const isAudio = asset.category === "music" || asset.category === "sound";
@@ -77,6 +81,11 @@ export const AssetRow: React.FC<AssetRowProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
               {asset.extension}
             </span>
+            {asset.notes && (
+              <span className="text-indigo-500 dark:text-indigo-400" title="Has Developer Notes">
+                <StickyNote className="w-3.5 h-3.5" />
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 text-xs text-zinc-400">
@@ -108,7 +117,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
       </div>
 
       {/* Right meta & actions */}
-      <div className="flex items-center gap-3 text-xs text-zinc-400 flex-shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-3 text-xs text-zinc-400 flex-shrink-0">
         <span className="tabular-nums w-18 text-right hidden sm:inline">
           {formatFileSize(asset.size)}
         </span>
@@ -117,7 +126,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
           <button
             type="button"
             onClick={() => onPlayAudio(asset)}
-            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+            className={`min-h-[40px] min-w-[40px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
               isPlaying
                 ? "bg-indigo-600 text-white"
                 : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-indigo-50 hover:text-indigo-600"
@@ -128,10 +137,25 @@ export const AssetRow: React.FC<AssetRowProps> = ({
           </button>
         )}
 
+        {onToggleFavorite && (
+          <button
+            type="button"
+            onClick={() => onToggleFavorite(asset)}
+            className={`min-h-[40px] min-w-[40px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+              asset.isFavorite
+                ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+                : "text-zinc-400 hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+            title={asset.isFavorite ? "Favorited (Stored in DB)" : "Mark Favorite"}
+          >
+            <Star className={`w-4 h-4 ${asset.isFavorite ? "fill-amber-500" : ""}`} />
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => onInspect(asset)}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          className="min-h-[40px] min-w-[40px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           title="Inspect & Edit Tags"
         >
           <Info className="w-4 h-4" />
@@ -142,7 +166,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
             href={asset.webViewLink}
             target="_blank"
             rel="noreferrer"
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="min-h-[40px] min-w-[40px] sm:min-h-[34px] sm:min-w-[34px] hidden sm:flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             title="Open in Drive"
           >
             <ExternalLink className="w-4 h-4" />

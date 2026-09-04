@@ -12,6 +12,14 @@ import {
   fetchDriveFolders,
   generateClientSmartMetadata,
 } from "./services/driveService";
+import {
+  loadUserAssetsFromDb,
+  batchSaveAssetsToDb,
+  saveAssetToDb,
+  toggleFavoriteInDb,
+  loadUserPreferences,
+  saveUserPreferences,
+} from "./services/dbService";
 import { SAMPLE_GAME_ASSETS } from "./data/sampleAssets";
 import { CATEGORIES, getCategoryInfo } from "./data/categories";
 import {
@@ -47,6 +55,8 @@ export default function App() {
   const [isSampleMode, setIsSampleMode] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [isBatchTagging, setIsBatchTagging] = useState(false);
+  const [isDbLoading, setIsDbLoading] = useState(false);
+  const [dbAssetCount, setDbAssetCount] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Folder navigation
@@ -70,31 +80,47 @@ export default function App() {
     sortBy: "name",
     sortOrder: "asc",
     viewMode: "grid",
+    onlyFavorites: false,
   });
 
-  // Initialize Auth state listener on app load
-  useEffect(() => {
-    const unsubscribe = initAuth(
-      (currentUser, token) => {
-        setUser(currentUser);
-        setToken(token);
-        setIsSampleMode(false);
-      },
-      () => {
-        // Fallback to sample mode if not authenticated
-        setUser(null);
-        setToken(null);
-        setIsSampleMode(true);
-      }
-    );
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
+  // Load user data & preferences from Cloud Firestore
+  const loadUserDataFromDb = useCallback(
+    async (uid: string, token: string | null) => {
+      setIsDbLoading(true);
+      try {
+        // 1. Load preferences
+        const prefs = await loadUserPreferences(uid);
+        if (prefs) {
+          setFilters((f) => ({
+            ...f,
+            viewMode: prefs.defaultViewMode || f.viewMode,
+            sortBy: prefs.defaultSortBy || f.sortBy,
+          }));
+        }
 
-  // Scan user's Google Drive files
+        // 2. Load stored assets from Cloud Firestore
+        const dbAssets = await loadUserAssetsFromDb(uid);
+        if (dbAssets && dbAssets.length > 0) {
+          setAssets(dbAssets);
+          setIsSampleMode(false);
+          setDbAssetCount(dbAssets.length);
+        } else if (token) {
+          // If Firestore is empty for this user, automatically scan their Google Drive
+          await scanDriveFiles(token, "all", uid);
+        }
+      } catch (dbErr) {
+        console.warn("Could not load assets from Firestore:", dbErr);
+      } finally {
+        setIsDbLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // Scan user's Google Drive files and persist to Firestore
   const scanDriveFiles = useCallback(
-    async (token: string, folderId: string = "all") => {
+    async (token: string, folderId: string = "all", uid?: string) => {
       setIsScanning(true);
       setErrorMsg(null);
       try {
@@ -103,14 +129,43 @@ export default function App() {
         });
 
         if (files.length === 0) {
-          // Keep sample assets available as reference if user's Drive has no game assets
           setErrorMsg(
             "No game assets found in this Google Drive folder. Showing sample game assets for reference."
           );
           setAssets(SAMPLE_GAME_ASSETS);
           setIsSampleMode(true);
         } else {
-          setAssets(files);
+          // Merge newly scanned files with existing state to preserve local/custom notes and favorites
+          setAssets((prev) => {
+            const existingMap = new Map<string, EnrichedAsset>(
+              prev.map((p) => [p.id, p])
+            );
+            const merged = files.map((file) => {
+              const existing = existingMap.get(file.id);
+              if (existing) {
+                return {
+                  ...file,
+                  isFavorite: existing.isFavorite,
+                  notes: existing.notes,
+                  userTags: Array.from(
+                    new Set([...file.userTags, ...existing.userTags])
+                  ),
+                  smart: file.smart || existing.smart,
+                };
+              }
+              return file;
+            });
+
+            const targetUid = uid || user?.uid;
+            if (targetUid) {
+              batchSaveAssetsToDb(targetUid, merged).catch((err) =>
+                console.warn("Could not persist assets to Firestore:", err)
+              );
+              setDbAssetCount(merged.length);
+            }
+
+            return merged;
+          });
           setIsSampleMode(false);
         }
 
@@ -128,8 +183,31 @@ export default function App() {
         setIsScanning(false);
       }
     },
-    []
+    [user?.uid]
   );
+
+  // Initialize Auth state listener on app load
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (currentUser, token) => {
+        setUser(currentUser);
+        setToken(token);
+        setIsSampleMode(false);
+        if (currentUser) {
+          loadUserDataFromDb(currentUser.uid, token);
+        }
+      },
+      () => {
+        // Fallback to sample mode if not authenticated
+        setUser(null);
+        setToken(null);
+        setIsSampleMode(true);
+      }
+    );
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [loadUserDataFromDb]);
 
   // Handle Google Sign In
   const handleSignIn = async () => {
@@ -140,7 +218,7 @@ export default function App() {
         setToken(result.accessToken);
         setAccessToken(result.accessToken);
         setIsSampleMode(false);
-        await scanDriveFiles(result.accessToken, "all");
+        await loadUserDataFromDb(result.user.uid, result.accessToken);
       }
     } catch (err: any) {
       console.error("Sign in failed:", err);
@@ -158,11 +236,10 @@ export default function App() {
     setActiveAudio(null);
   };
 
-  // Batch Auto-Tag untagged assets with Gemini AI
+  // Batch Auto-Tag untagged assets with Gemini AI & save to Firestore
   const handleBatchAutoTag = async () => {
     setIsBatchTagging(true);
     try {
-      // Find assets that haven't been tagged yet or need deeper AI tags
       const untagged = assets.filter(
         (a) => !a.smart || a.smart.smartTags.length === 0
       );
@@ -190,8 +267,8 @@ export default function App() {
         const resultsMap = new Map<string, any>();
         (data.results || []).forEach((r: any) => resultsMap.set(r.id, r));
 
-        setAssets((prev) =>
-          prev.map((item) => {
+        setAssets((prev) => {
+          const updated = prev.map((item) => {
             const aiData = resultsMap.get(item.id);
             if (aiData) {
               return {
@@ -204,36 +281,55 @@ export default function App() {
               };
             }
             return item;
-          })
-        );
+          });
+
+          if (user?.uid) {
+            batchSaveAssetsToDb(user.uid, updated).catch(console.warn);
+          }
+          return updated;
+        });
       } else {
-        // Fallback for static environments (e.g. GitHub Pages) without an Express server
-        setAssets((prev) =>
-          prev.map((item) => {
+        // Fallback for static environments without an Express server
+        setAssets((prev) => {
+          const updated = prev.map((item) => {
             const meta = generateClientSmartMetadata(item);
             return {
               ...item,
               category: meta.category,
               smart: meta,
-              userTags: Array.from(new Set([...item.userTags, ...meta.smartTags])),
+              userTags: Array.from(
+                new Set([...item.userTags, ...meta.smartTags])
+              ),
             };
-          })
-        );
+          });
+          if (user?.uid) {
+            batchSaveAssetsToDb(user.uid, updated).catch(console.warn);
+          }
+          return updated;
+        });
       }
     } catch (err: any) {
-      console.warn("Backend auto-tag unavailable, using client-side smart categorizer:", err);
-      // Fallback for static host / offline
-      setAssets((prev) =>
-        prev.map((item) => {
+      console.warn(
+        "Backend auto-tag unavailable, using client-side smart categorizer:",
+        err
+      );
+      setAssets((prev) => {
+        const updated = prev.map((item) => {
           const meta = generateClientSmartMetadata(item);
           return {
             ...item,
             category: meta.category,
             smart: meta,
-            userTags: Array.from(new Set([...item.userTags, ...meta.smartTags])),
+            userTags: Array.from(
+              new Set([...item.userTags, ...meta.smartTags])
+            ),
           };
-        })
-      );
+        });
+        if (user?.uid) {
+          batchSaveAssetsToDb(user.uid, updated).catch(console.warn);
+        }
+        return updated;
+      });
     } finally {
       setIsBatchTagging(false);
     }
@@ -249,11 +345,57 @@ export default function App() {
     }
   };
 
-  // Update single asset metadata (from detail modal)
-  const handleUpdateAsset = (updated: EnrichedAsset) => {
+  // Handle filter changes and persist user preferences
+  const handleFilterChange = (newFilters: SearchFilterState) => {
+    setFilters(newFilters);
+    if (
+      user?.uid &&
+      (newFilters.viewMode !== filters.viewMode ||
+        newFilters.sortBy !== filters.sortBy)
+    ) {
+      saveUserPreferences(user.uid, {
+        defaultViewMode: newFilters.viewMode,
+        defaultSortBy: newFilters.sortBy,
+      }).catch((err) => console.warn("Could not save preferences:", err));
+    }
+  };
+
+  // Toggle favorite with Firestore persistence
+  const handleToggleFavorite = async (asset: EnrichedAsset) => {
+    const nextFavorite = !asset.isFavorite;
+    const updated: EnrichedAsset = {
+      ...asset,
+      isFavorite: nextFavorite,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setAssets((prev) => prev.map((a) => (a.id === asset.id ? updated : a)));
+    if (inspectAsset?.id === asset.id) {
+      setInspectAsset(updated);
+    }
+
+    if (user?.uid) {
+      try {
+        await toggleFavoriteInDb(user.uid, asset.id, nextFavorite);
+      } catch (err) {
+        console.warn("Could not persist favorite toggle:", err);
+      }
+    }
+  };
+
+  // Update single asset metadata (from detail modal) with Firestore persistence
+  const handleUpdateAsset = async (updated: EnrichedAsset) => {
     setAssets((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
     if (inspectAsset?.id === updated.id) {
       setInspectAsset(updated);
+    }
+
+    if (user?.uid) {
+      try {
+        await saveAssetToDb(user.uid, updated);
+      } catch (err) {
+        console.warn("Could not save updated asset to Firestore:", err);
+      }
     }
   };
 
@@ -261,6 +403,11 @@ export default function App() {
   const filteredAssets = useMemo(() => {
     return assets
       .filter((asset) => {
+        // Only favorites filter
+        if (filters.onlyFavorites && !asset.isFavorite) {
+          return false;
+        }
+
         // Category filter
         if (filters.category !== "all" && asset.category !== filters.category) {
           return false;
@@ -354,7 +501,7 @@ export default function App() {
   return (
     <div
       id="game-asset-organizer-app"
-      className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col font-sans transition-colors pb-24"
+      className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col font-sans transition-colors pb-28 sm:pb-24"
     >
       {/* Navbar */}
       <Navbar
@@ -373,7 +520,7 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Sample Mode / Drive Connect Banner */}
         {isSampleMode && !user && (
           <div
@@ -400,7 +547,7 @@ export default function App() {
             <button
               type="button"
               onClick={handleSignIn}
-              className="px-5 py-2.5 rounded-xl bg-white text-zinc-900 hover:bg-zinc-100 font-semibold text-xs shadow-md transition-all whitespace-nowrap cursor-pointer"
+              className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl bg-white text-zinc-900 hover:bg-zinc-100 font-semibold text-xs shadow-md transition-all whitespace-nowrap cursor-pointer text-center"
             >
               Connect My Google Drive
             </button>
@@ -426,8 +573,8 @@ export default function App() {
 
         {/* Drive Folder Selector (when connected) */}
         {user && driveFolders.length > 0 && (
-          <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 overflow-x-auto pb-1">
-            <span className="font-semibold text-zinc-400 flex items-center gap-1">
+          <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 overflow-x-auto pb-1 no-scrollbar">
+            <span className="font-semibold text-zinc-400 flex items-center gap-1 flex-shrink-0">
               <FolderOpen className="w-3.5 h-3.5" /> Drive Folder:
             </span>
             <button
@@ -436,7 +583,7 @@ export default function App() {
                 setSelectedFolderId("all");
                 if (accessToken) scanDriveFiles(accessToken, "all");
               }}
-              className={`px-2.5 py-1 rounded-lg transition-colors ${
+              className={`min-h-[36px] px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                 selectedFolderId === "all"
                   ? "bg-indigo-600 text-white font-medium"
                   : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -452,7 +599,7 @@ export default function App() {
                   setSelectedFolderId(f.id);
                   if (accessToken) scanDriveFiles(accessToken, f.id);
                 }}
-                className={`px-2.5 py-1 rounded-lg transition-colors truncate max-w-44 ${
+                className={`min-h-[36px] px-3 py-1.5 rounded-lg transition-colors truncate max-w-44 whitespace-nowrap flex-shrink-0 ${
                   selectedFolderId === f.id
                     ? "bg-indigo-600 text-white font-medium"
                     : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
@@ -468,7 +615,7 @@ export default function App() {
         {/* Search & NLP Section */}
         <SearchBar
           filters={filters}
-          onFilterChange={setFilters}
+          onFilterChange={handleFilterChange}
           onSmartSearchParsed={handleSmartSearchParsed}
           totalCount={assets.length}
           filteredCount={filteredAssets.length}
@@ -477,7 +624,7 @@ export default function App() {
         {/* Category & Smart Tags Filtering Section */}
         <CategoryFilter
           filters={filters}
-          onFilterChange={setFilters}
+          onFilterChange={handleFilterChange}
           assets={assets}
         />
 
@@ -500,12 +647,13 @@ export default function App() {
             <button
               type="button"
               onClick={() =>
-                setFilters({
+                handleFilterChange({
                   ...filters,
                   category: "all",
                   selectedTags: [],
                   extension: "all",
                   searchQuery: "",
+                  onlyFavorites: false,
                 })
               }
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
@@ -525,9 +673,10 @@ export default function App() {
                 isPlaying={activeAudio?.id === asset.id}
                 onPlayAudio={(a) => setActiveAudio(a)}
                 onInspect={(a) => setInspectAsset(a)}
+                onToggleFavorite={handleToggleFavorite}
                 onTagClick={(tag) => {
                   if (!filters.selectedTags.includes(tag)) {
-                    setFilters({
+                    handleFilterChange({
                       ...filters,
                       selectedTags: [...filters.selectedTags, tag],
                     });
@@ -546,9 +695,10 @@ export default function App() {
                 isPlaying={activeAudio?.id === asset.id}
                 onPlayAudio={(a) => setActiveAudio(a)}
                 onInspect={(a) => setInspectAsset(a)}
+                onToggleFavorite={handleToggleFavorite}
                 onTagClick={(tag) => {
                   if (!filters.selectedTags.includes(tag)) {
-                    setFilters({
+                    handleFilterChange({
                       ...filters,
                       selectedTags: [...filters.selectedTags, tag],
                     });
@@ -570,6 +720,7 @@ export default function App() {
       {/* Asset Inspector & Tag Editor Modal */}
       <AssetDetailModal
         asset={inspectAsset}
+        userId={user?.uid}
         onClose={() => setInspectAsset(null)}
         onUpdateAsset={handleUpdateAsset}
         accessToken={accessToken}
