@@ -5,6 +5,7 @@ interface GoogleSignInButtonProps {
   isLoading?: boolean;
   text?: string;
   className?: string;
+  compact?: boolean;
 }
 
 export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
@@ -12,6 +13,7 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
   isLoading = false,
   text = "Sign in with Google",
   className = "",
+  compact = false,
 }) => {
   return (
     <button
@@ -19,13 +21,15 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       type="button"
       onClick={onClick}
       disabled={isLoading}
-      className={`inline-flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-100 font-medium text-sm shadow-xs transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-100 font-semibold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed shrink-0 whitespace-nowrap ${
+        compact ? "min-h-[38px] px-3 py-1.5" : "min-h-[44px] px-4 py-2"
+      } ${className}`}
     >
       {isLoading ? (
-        <div className="w-5 h-5 border-2 border-zinc-400 border-t-zinc-800 dark:border-t-white rounded-full animate-spin" />
+        <div className="w-4 h-4 border-2 border-zinc-400 border-t-zinc-800 dark:border-t-white rounded-full animate-spin flex-shrink-0" />
       ) : (
         <svg
-          className="w-5 h-5 flex-shrink-0"
+          className="w-4 h-4 flex-shrink-0"
           viewBox="0 0 48 48"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -48,7 +52,7 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
           <path fill="none" d="M0 0h48v48H0z" />
         </svg>
       )}
-      <span>{isLoading ? "Connecting to Drive..." : text}</span>
+      <span>{isLoading ? "Connecting..." : text}</span>
     </button>
   );
 };

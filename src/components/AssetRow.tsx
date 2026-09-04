@@ -13,6 +13,7 @@ import {
   FileText,
   Star,
   StickyNote,
+  Folder,
 } from "lucide-react";
 import { EnrichedAsset } from "../types";
 import { getCategoryInfo, formatFileSize } from "../data/categories";
@@ -24,6 +25,7 @@ interface AssetRowProps {
   onInspect: (asset: EnrichedAsset) => void;
   onTagClick: (tag: string) => void;
   onToggleFavorite?: (asset: EnrichedAsset) => void;
+  onFolderClick?: (folderName: string, folderId?: string) => void;
 }
 
 export const AssetRow: React.FC<AssetRowProps> = ({
@@ -33,6 +35,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
   onInspect,
   onTagClick,
   onToggleFavorite,
+  onFolderClick,
 }) => {
   const categoryInfo = getCategoryInfo(asset.category);
   const isAudio = asset.category === "music" || asset.category === "sound";
@@ -41,6 +44,19 @@ export const AssetRow: React.FC<AssetRowProps> = ({
     const list = [...asset.userTags, ...(asset.smart?.smartTags || [])];
     return Array.from(new Set(list.map((t) => t.replace(/^#/, "").toLowerCase())));
   }, [asset]);
+
+  // Folder location resolution
+  const folderDisplayName = React.useMemo(() => {
+    if (asset.folderName) return asset.folderName;
+    if (asset.smart?.suggestedFolder) {
+      const cleaned = asset.smart.suggestedFolder
+        .replace(/^Assets\//i, "")
+        .replace(/\/+$/, "");
+      if (cleaned) return cleaned;
+    }
+    if (asset.parents && asset.parents.length > 0) return "Drive Folder";
+    return "My Drive";
+  }, [asset.folderName, asset.smart?.suggestedFolder, asset.parents]);
 
   const getCategoryIcon = () => {
     switch (asset.category) {
@@ -71,7 +87,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span
               onClick={() => onInspect(asset)}
               className="font-medium text-zinc-900 dark:text-zinc-100 truncate cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
@@ -81,6 +97,21 @@ export const AssetRow: React.FC<AssetRowProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
               {asset.extension}
             </span>
+            {/* Folder badge */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onFolderClick) {
+                  onFolderClick(folderDisplayName, asset.folderId);
+                }
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-[11px] font-mono hover:bg-amber-500/20 transition-colors cursor-pointer"
+              title={`Folder: ${folderDisplayName} (click to filter)`}
+            >
+              <Folder className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0 fill-amber-500/20" />
+              <span className="truncate max-w-[140px]">{folderDisplayName}</span>
+            </button>
             {asset.notes && (
               <span className="text-indigo-500 dark:text-indigo-400" title="Has Developer Notes">
                 <StickyNote className="w-3.5 h-3.5" />

@@ -10,6 +10,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "music",
     extension: "ogg",
     isFolder: false,
+    folderName: "Audio/Music",
     smart: {
       category: "music",
       subCategory: "bgm-combat",
@@ -29,6 +30,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "music",
     extension: "mp3",
     isFolder: false,
+    folderName: "Audio/Music",
     smart: {
       category: "music",
       subCategory: "bgm-ambient",
@@ -48,6 +50,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "sound",
     extension: "wav",
     isFolder: false,
+    folderName: "Audio/SFX",
     smart: {
       category: "sound",
       subCategory: "weapon-sfx",
@@ -67,6 +70,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "sound",
     extension: "wav",
     isFolder: false,
+    folderName: "Audio/SFX",
     smart: {
       category: "sound",
       subCategory: "weapon-sfx",
@@ -86,6 +90,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "sound",
     extension: "wav",
     isFolder: false,
+    folderName: "Audio/SFX",
     smart: {
       category: "sound",
       subCategory: "ui-sfx",
@@ -106,6 +111,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "imagery",
     extension: "png",
     isFolder: false,
+    folderName: "Sprites/Characters",
     smart: {
       category: "imagery",
       subCategory: "character-sprite",
@@ -126,6 +132,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "imagery",
     extension: "png",
     isFolder: false,
+    folderName: "Sprites/Tilesets",
     smart: {
       category: "imagery",
       subCategory: "tilemap",
@@ -146,6 +153,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "ui",
     extension: "png",
     isFolder: false,
+    folderName: "UI/Frames",
     smart: {
       category: "ui",
       subCategory: "hud-frame",
@@ -166,6 +174,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "ui",
     extension: "png",
     isFolder: false,
+    folderName: "UI/Icons",
     smart: {
       category: "ui",
       subCategory: "hud-icon",
@@ -185,6 +194,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "3d",
     extension: "fbx",
     isFolder: false,
+    folderName: "3D_Models",
     smart: {
       category: "3d",
       subCategory: "3d-prop",
@@ -204,6 +214,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "fonts",
     extension: "ttf",
     isFolder: false,
+    folderName: "Fonts",
     smart: {
       category: "fonts",
       subCategory: "pixel-font",
@@ -223,6 +234,7 @@ export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
     category: "docs",
     extension: "pdf",
     isFolder: false,
+    folderName: "Docs",
     smart: {
       category: "docs",
       subCategory: "game-design-doc",

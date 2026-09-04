@@ -43,6 +43,8 @@ export interface EnrichedAsset extends DriveFileItem {
   notes?: string;
   updatedAt?: string;
   userId?: string;
+  folderName?: string;
+  folderId?: string;
 }
 
 export interface AssetCollection {

@@ -337,6 +337,13 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
 
             {/* File Info Specs */}
             <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 text-xs space-y-1.5 text-zinc-600 dark:text-zinc-400">
+              <div className="flex justify-between items-center">
+                <span>Folder:</span>
+                <span className="font-mono text-zinc-800 dark:text-zinc-200 inline-flex items-center gap-1 font-medium bg-amber-500/10 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-md text-[11px]">
+                  <Folder className="w-3 h-3 text-amber-600 dark:text-amber-400 fill-amber-500/20" />
+                  {asset.folderName || (asset.smart?.suggestedFolder?.replace(/^Assets\//i, "").replace(/\/+$/, "")) || "My Drive"}
+                </span>
+              </div>
               <div className="flex justify-between">
                 <span>File Size:</span>
                 <strong className="text-zinc-800 dark:text-zinc-200 font-mono">

@@ -124,9 +124,19 @@ export default function App() {
       setIsScanning(true);
       setErrorMsg(null);
       try {
-        const files = await fetchDriveFiles(token, {
-          parentFolderId: folderId,
-        });
+        // Fetch files and folders concurrently so we can resolve parent folder names
+        const [files, folders] = await Promise.all([
+          fetchDriveFiles(token, { parentFolderId: folderId }),
+          fetchDriveFolders(token).catch(() => []),
+        ]);
+
+        if (folders.length > 0) {
+          setDriveFolders(folders);
+        }
+
+        const folderMap = new Map<string, string>(
+          folders.map((f): [string, string] => [f.id, f.name])
+        );
 
         if (files.length === 0) {
           setErrorMsg(
@@ -135,16 +145,24 @@ export default function App() {
           setAssets(SAMPLE_GAME_ASSETS);
           setIsSampleMode(true);
         } else {
-          // Merge newly scanned files with existing state to preserve local/custom notes and favorites
+          // Merge newly scanned files with existing state to preserve local/custom notes, favorites, and folder names
           setAssets((prev) => {
             const existingMap = new Map<string, EnrichedAsset>(
               prev.map((p) => [p.id, p])
             );
             const merged = files.map((file) => {
               const existing = existingMap.get(file.id);
+              const parentId = file.parents?.[0] || (folderId !== "all" ? folderId : undefined);
+              const resolvedFolderName =
+                file.folderName ||
+                (parentId ? folderMap.get(parentId) : undefined) ||
+                existing?.folderName;
+
               if (existing) {
                 return {
                   ...file,
+                  folderName: resolvedFolderName,
+                  folderId: parentId || existing.folderId,
                   isFavorite: existing.isFavorite,
                   notes: existing.notes,
                   userTags: Array.from(
@@ -153,7 +171,11 @@ export default function App() {
                   smart: file.smart || existing.smart,
                 };
               }
-              return file;
+              return {
+                ...file,
+                folderName: resolvedFolderName,
+                folderId: parentId,
+              };
             });
 
             const targetUid = uid || user?.uid;
@@ -167,14 +189,6 @@ export default function App() {
             return merged;
           });
           setIsSampleMode(false);
-        }
-
-        // Also fetch user's top-level folders for browsing
-        try {
-          const folders = await fetchDriveFolders(token);
-          setDriveFolders(folders);
-        } catch {
-          // ignore folder list failure
         }
       } catch (err: any) {
         console.error("Failed to scan Google Drive:", err);
@@ -360,6 +374,34 @@ export default function App() {
     }
   };
 
+  // Handle clicking on a folder badge on any asset card or row
+  const handleFolderClick = (folderName: string, folderId?: string) => {
+    if (folderId && driveFolders.some((f) => f.id === folderId)) {
+      setSelectedFolderId(folderId);
+      if (accessToken) {
+        scanDriveFiles(accessToken, folderId);
+      }
+      return;
+    }
+    const matched = driveFolders.find(
+      (f) =>
+        f.name.toLowerCase() === folderName.toLowerCase() ||
+        folderName.toLowerCase().includes(f.name.toLowerCase())
+    );
+    if (matched) {
+      setSelectedFolderId(matched.id);
+      if (accessToken) {
+        scanDriveFiles(accessToken, matched.id);
+      }
+      return;
+    }
+    // Filter locally via search query if not directly a root Drive folder
+    setFilters((prev) => ({
+      ...prev,
+      searchQuery: folderName,
+    }));
+  };
+
   // Toggle favorite with Firestore persistence
   const handleToggleFavorite = async (asset: EnrichedAsset) => {
     const nextFavorite = !asset.isFavorite;
@@ -443,9 +485,9 @@ export default function App() {
           const matchCategory = asset.category.toLowerCase().includes(q);
           const matchMood = asset.smart?.moodStyle?.toLowerCase().includes(q);
           const matchSummary = asset.smart?.summary?.toLowerCase().includes(q);
-          const matchFolder = asset.smart?.suggestedFolder
-            ?.toLowerCase()
-            .includes(q);
+          const matchFolder =
+            asset.folderName?.toLowerCase().includes(q) ||
+            asset.smart?.suggestedFolder?.toLowerCase().includes(q);
           const matchTags = [
             ...asset.userTags,
             ...(asset.smart?.smartTags || []),
@@ -674,6 +716,7 @@ export default function App() {
                 onPlayAudio={(a) => setActiveAudio(a)}
                 onInspect={(a) => setInspectAsset(a)}
                 onToggleFavorite={handleToggleFavorite}
+                onFolderClick={handleFolderClick}
                 onTagClick={(tag) => {
                   if (!filters.selectedTags.includes(tag)) {
                     handleFilterChange({
@@ -696,6 +739,7 @@ export default function App() {
                 onPlayAudio={(a) => setActiveAudio(a)}
                 onInspect={(a) => setInspectAsset(a)}
                 onToggleFavorite={handleToggleFavorite}
+                onFolderClick={handleFolderClick}
                 onTagClick={(tag) => {
                   if (!filters.selectedTags.includes(tag)) {
                     handleFilterChange({

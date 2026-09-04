@@ -106,7 +106,7 @@ export function categorizeAsset(item: DriveFileItem): AssetCategory {
 }
 
 // Convert DriveFileItem to EnrichedAsset with default and stored tags
-export function enrichDriveAsset(item: DriveFileItem): EnrichedAsset {
+export function enrichDriveAsset(item: DriveFileItem, folderName?: string): EnrichedAsset {
   const isFolder = item.mimeType === "application/vnd.google-apps.folder";
   const category = isFolder ? "other" : categorizeAsset(item);
   const ext = getFileExtension(item.name);
@@ -131,6 +131,8 @@ export function enrichDriveAsset(item: DriveFileItem): EnrichedAsset {
     }
   }
 
+  const resolvedFolderName = folderName || item.properties?.folderName;
+
   return {
     ...item,
     category,
@@ -138,6 +140,8 @@ export function enrichDriveAsset(item: DriveFileItem): EnrichedAsset {
     isFolder,
     smart,
     userTags,
+    folderName: resolvedFolderName,
+    folderId: item.parents?.[0],
   };
 }
 
@@ -182,7 +186,7 @@ export async function fetchDriveFiles(
   const data = await response.json();
   const rawFiles: DriveFileItem[] = data.files || [];
 
-  return rawFiles.map(enrichDriveAsset);
+  return rawFiles.map((item) => enrichDriveAsset(item));
 }
 
 // Fetch subfolders list for folder picker / navigation

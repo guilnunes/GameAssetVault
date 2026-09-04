@@ -15,6 +15,7 @@ import {
   FileText,
   Star,
   StickyNote,
+  Folder,
 } from "lucide-react";
 import { EnrichedAsset } from "../types";
 import { getCategoryInfo, formatFileSize } from "../data/categories";
@@ -26,6 +27,7 @@ interface AssetCardProps {
   onInspect: (asset: EnrichedAsset) => void;
   onTagClick: (tag: string) => void;
   onToggleFavorite?: (asset: EnrichedAsset) => void;
+  onFolderClick?: (folderName: string, folderId?: string) => void;
   accessToken?: string | null;
 }
 
@@ -36,6 +38,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({
   onInspect,
   onTagClick,
   onToggleFavorite,
+  onFolderClick,
   accessToken,
 }) => {
   const categoryInfo = getCategoryInfo(asset.category);
@@ -59,6 +62,19 @@ export const AssetCard: React.FC<AssetCardProps> = ({
     }
     return null;
   }, [asset, accessToken, isImage]);
+
+  // Folder location resolution
+  const folderDisplayName = React.useMemo(() => {
+    if (asset.folderName) return asset.folderName;
+    if (asset.smart?.suggestedFolder) {
+      const cleaned = asset.smart.suggestedFolder
+        .replace(/^Assets\//i, "")
+        .replace(/\/+$/, "");
+      if (cleaned) return cleaned;
+    }
+    if (asset.parents && asset.parents.length > 0) return "Drive Folder";
+    return "My Drive";
+  }, [asset.folderName, asset.smart?.suggestedFolder, asset.parents]);
 
   return (
     <div
@@ -191,10 +207,30 @@ export const AssetCard: React.FC<AssetCardProps> = ({
 
       {/* Card Body */}
       <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-        <div>
+        <div className="space-y-1.5">
+          {/* Main Folder Indicator - Prominent First-Class Information */}
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onFolderClick) {
+                  onFolderClick(folderDisplayName, asset.folderId);
+                }
+              }}
+              className="group/folder inline-flex items-center gap-1.5 max-w-full px-2.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/25 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-500/20 dark:hover:bg-amber-500/25 transition-colors cursor-pointer"
+              title={`Folder: ${folderDisplayName} (click to filter)`}
+            >
+              <Folder className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 fill-amber-500/20" />
+              <span className="truncate tracking-tight font-mono text-[11px] font-medium">
+                {folderDisplayName}
+              </span>
+            </button>
+          </div>
+
           {/* File Name */}
           <h3
-            className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors pt-0.5"
             title={asset.name}
             onClick={() => onInspect(asset)}
           >
@@ -202,7 +238,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({
           </h3>
 
           {/* Smart Subcategory / Mood descriptor */}
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
             {asset.smart?.moodStyle ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 dark:text-indigo-400">
                 <Sparkles className="w-3 h-3 flex-shrink-0" />

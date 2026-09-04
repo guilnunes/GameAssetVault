@@ -105,7 +105,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               title="Enhance search with Gemini AI"
             >
               <Sparkles className={`w-3.5 h-3.5 ${isAiSearching ? "animate-spin" : ""}`} />
-              <span className="hidden xs:inline">AI Filter</span>
+              <span className="hidden sm:inline">AI Filter</span>
             </button>
           </div>
         </form>

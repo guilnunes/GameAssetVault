@@ -62,6 +62,8 @@ export async function saveAssetToDb(
       smartTags: asset.smart?.smartTags || [],
       moodStyle: asset.smart?.moodStyle || "",
       suggestedFolder: asset.smart?.suggestedFolder || "",
+      folderName: asset.folderName || "",
+      folderId: asset.folderId || "",
       summary: asset.smart?.summary || "",
       subCategory: asset.smart?.subCategory || "",
       isFavorite: Boolean(asset.isFavorite),
@@ -111,6 +113,8 @@ export async function batchSaveAssetsToDb(
           smartTags: asset.smart?.smartTags || [],
           moodStyle: asset.smart?.moodStyle || "",
           suggestedFolder: asset.smart?.suggestedFolder || "",
+          folderName: asset.folderName || "",
+          folderId: asset.folderId || "",
           summary: asset.smart?.summary || "",
           subCategory: asset.smart?.subCategory || "",
           isFavorite: Boolean(asset.isFavorite),
@@ -162,6 +166,8 @@ export async function loadUserAssetsFromDb(userId: string): Promise<EnrichedAsse
         notes: data.notes || "",
         updatedAt: data.updatedAt || undefined,
         userId: data.userId,
+        folderName: data.folderName || undefined,
+        folderId: data.folderId || undefined,
         smart: data.smartTags || data.moodStyle || data.summary
           ? {
               category: data.category,
