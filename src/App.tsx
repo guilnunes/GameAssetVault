@@ -10,6 +10,7 @@ import {
 import {
   fetchDriveFiles,
   fetchDriveFolders,
+  fetchFolderDetails,
   generateClientSmartMetadata,
   isGameAsset,
 } from "./services/driveService";
@@ -174,21 +175,42 @@ export default function App() {
           fetchOptions = { parentFolderId: folderId };
         }
 
-        // Fetch files and folders concurrently so we can resolve parent folder names
-        const [files, folders] = await Promise.all([
+        // Fetch files and folders concurrently (fetching only root folders directly in My Drive)
+        const [files, rootFolders] = await Promise.all([
           fetchDriveFiles(token, fetchOptions),
-          fetchDriveFolders(token).catch(() => []),
+          fetchDriveFolders(token, "root").catch(() => []),
         ]);
+
+        let combinedFolders = [...rootFolders];
+
+        // Also fetch any starred important folders that might be subfolders
+        const missingImportantIds = (activeImportantIds || []).filter(
+          (impId) => !combinedFolders.some((f) => f.id === impId)
+        );
+        if (missingImportantIds.length > 0) {
+          try {
+            const extra = await Promise.allSettled(
+              missingImportantIds.slice(0, 10).map((id) => fetchFolderDetails(token, id))
+            );
+            for (const r of extra) {
+              if (r.status === "fulfilled" && r.value) {
+                combinedFolders.push(r.value);
+              }
+            }
+          } catch {
+            // Ignore extra fetch failures
+          }
+        }
 
         const nowIso = new Date().toISOString();
         setLastSyncTime(nowIso);
 
         const currentUid = uid || user?.uid;
-        if (folders.length > 0) {
-          setDriveFolders(folders);
+        if (combinedFolders.length > 0) {
+          setDriveFolders(combinedFolders);
           if (currentUid) {
             saveUserPreferences(currentUid, {
-              savedFolders: folders,
+              savedFolders: combinedFolders,
               lastDriveSyncTime: nowIso,
             }).catch(() => {});
           }
@@ -199,7 +221,7 @@ export default function App() {
         }
 
         const folderMap = new Map<string, string>(
-          folders.map((f): [string, string] => [f.id, f.name])
+          combinedFolders.map((f): [string, string] => [f.id, f.name])
         );
 
         if (files.length === 0) {

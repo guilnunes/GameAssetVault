@@ -414,97 +414,151 @@ export function resolveFolderHierarchy(
   });
 }
 
-// Fetch subfolders list for folder picker & navigation with full path resolution
+export interface FetchFoldersOptions {
+  parentId?: string; // default "root"
+  parentPath?: string; // default "My Drive"
+  parentSegments?: string[]; // default ["My Drive"]
+  searchQuery?: string;
+  pageSize?: number;
+}
+
+/**
+ * Fetch folders from Google Drive.
+ * By default, queries only folders directly inside "My Drive" ('root' in parents),
+ * matching the exact folder list seen in Google Drive on Chrome.
+ */
 export async function fetchDriveFolders(
   token: string,
-  parentId?: string
+  optionsOrParentId?: string | FetchFoldersOptions
 ): Promise<DriveFolderItem[]> {
+  let parentId = "root";
+  let parentPath = "My Drive";
+  let parentSegments = ["My Drive"];
+  let searchQuery = "";
+  let pageSize = 100;
+
+  if (typeof optionsOrParentId === "string") {
+    parentId = optionsOrParentId;
+  } else if (optionsOrParentId) {
+    if (optionsOrParentId.parentId !== undefined) {
+      parentId = optionsOrParentId.parentId;
+    }
+    if (optionsOrParentId.parentPath) {
+      parentPath = optionsOrParentId.parentPath;
+    }
+    if (optionsOrParentId.parentSegments) {
+      parentSegments = optionsOrParentId.parentSegments;
+    }
+    if (optionsOrParentId.searchQuery) {
+      searchQuery = optionsOrParentId.searchQuery;
+    }
+    if (optionsOrParentId.pageSize) {
+      pageSize = optionsOrParentId.pageSize;
+    }
+  }
+
   const queryParts = [
     "mimeType = 'application/vnd.google-apps.folder'",
     "trashed = false",
   ];
-  if (parentId && parentId !== "all") {
+
+  if (searchQuery.trim()) {
+    // When searching by keyword across drive
+    const sanitized = searchQuery.trim().replace(/'/g, "\\'");
+    queryParts.push(`name contains '${sanitized}'`);
+  } else if (parentId && parentId !== "all") {
+    // Standard Google Drive folder navigation:
+    // If parentId is 'root', query `'root' in parents` (returns ONLY top-level folders in My Drive)
+    // If parentId is a folder ID, query `'${parentId}' in parents` (returns ONLY folders directly inside it)
     queryParts.push(`'${parentId}' in parents`);
   }
 
   const query = queryParts.join(" and ");
-  const url = `${DRIVE_API_BASE}/files?q=${encodeURIComponent(
-    query
-  )}&fields=nextPageToken,files(id,name,parents)&pageSize=150&orderBy=name`;
 
-  const [foldersResponse, rootResponse] = await Promise.allSettled([
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } }),
-    fetch(`${DRIVE_API_BASE}/files/root?fields=id,name`, {
+  // Query Drive API with proper sorting
+  const fetchUrl = (order: string) =>
+    `${DRIVE_API_BASE}/files?q=${encodeURIComponent(
+      query
+    )}&fields=nextPageToken,files(id,name,parents,modifiedTime)&pageSize=${pageSize}&orderBy=${encodeURIComponent(
+      order
+    )}`;
+
+  let response = await fetch(fetchUrl("name_natural,name"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  // Fallback to standard 'name' ordering if name_natural is not supported
+  if (!response.ok) {
+    response = await fetch(fetchUrl("name"), {
       headers: { Authorization: `Bearer ${token}` },
-    }),
-  ]);
+    });
+  }
 
-  if (foldersResponse.status !== "fulfilled" || !foldersResponse.value.ok) {
+  if (!response.ok) {
     throw new Error(
-      `Failed to load Google Drive folders (${
-        foldersResponse.status === "fulfilled"
-          ? foldersResponse.value.status
-          : "network error"
-      })`
+      `Failed to load Google Drive folders (${response.status})`
     );
   }
 
-  const data = await foldersResponse.value.json();
+  const data = await response.json();
   const rawFolders: Array<{ id: string; name: string; parents?: string[] }> =
     data.files || [];
 
-  // Determine root folder info
-  let rootId: string | null = null;
-  let rootName = "My Drive";
-  if (rootResponse.status === "fulfilled" && rootResponse.value.ok) {
-    try {
-      const rootData = await rootResponse.value.json();
-      if (rootData.id) rootId = rootData.id;
-      if (rootData.name) rootName = rootData.name;
-    } catch {
-      // Fallback to "My Drive"
+  return rawFolders.map((folder) => {
+    let segments: string[];
+    let path: string;
+
+    if (searchQuery.trim()) {
+      // In search mode across drive, path begins with My Drive
+      segments = ["My Drive", folder.name];
+      path = `My Drive / ... / ${folder.name}`;
+    } else if (parentId === "root") {
+      segments = ["My Drive", folder.name];
+      path = `My Drive / ${folder.name}`;
+    } else {
+      segments = [...parentSegments, folder.name];
+      path = segments.join(" / ");
     }
-  }
 
-  // Attempt to resolve missing parent folders if any
-  const folderMap = new Map<string, { id: string; name: string; parents?: string[] }>();
-  for (const f of rawFolders) {
-    folderMap.set(f.id, f);
-  }
+    return {
+      id: folder.id,
+      name: folder.name,
+      parents: folder.parents || [parentId],
+      path,
+      pathSegments: segments,
+    };
+  });
+}
 
-  const missingParentIds = new Set<string>();
-  for (const f of rawFolders) {
-    if (f.parents && f.parents.length > 0) {
-      const pId = f.parents[0];
-      if (pId !== "root" && pId !== rootId && !folderMap.has(pId)) {
-        missingParentIds.add(pId);
+/**
+ * Fetches metadata for a specific folder by ID
+ */
+export async function fetchFolderDetails(
+  token: string,
+  folderId: string
+): Promise<DriveFolderItem | null> {
+  if (!folderId || folderId === "root" || folderId === "all" || folderId === "important") {
+    return null;
+  }
+  try {
+    const res = await fetch(
+      `${DRIVE_API_BASE}/files/${folderId}?fields=id,name,parents`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
       }
-    }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      id: data.id,
+      name: data.name,
+      parents: data.parents,
+      path: `My Drive / ... / ${data.name}`,
+      pathSegments: ["My Drive", "...", data.name],
+    };
+  } catch {
+    return null;
   }
-
-  // Fetch up to 10 missing parents to ensure full paths are accurate
-  if (missingParentIds.size > 0) {
-    const idsToFetch = Array.from(missingParentIds).slice(0, 10);
-    try {
-      const parentFetches = await Promise.allSettled(
-        idsToFetch.map((pId) =>
-          fetch(`${DRIVE_API_BASE}/files/${pId}?fields=id,name,parents`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }).then((r) => (r.ok ? r.json() : null))
-        )
-      );
-      for (const res of parentFetches) {
-        if (res.status === "fulfilled" && res.value && res.value.id) {
-          folderMap.set(res.value.id, res.value);
-          rawFolders.push(res.value);
-        }
-      }
-    } catch {
-      // Silently continue if fetching parent info fails
-    }
-  }
-
-  return resolveFolderHierarchy(rawFolders, rootName, rootId);
 }
 
 // Create a new folder on Drive (Requires confirmation in UI)
