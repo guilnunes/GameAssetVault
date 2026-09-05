@@ -1,4 +1,116 @@
-import { EnrichedAsset } from "../types";
+import { EnrichedAsset, DriveFolderItem } from "../types";
+
+export const SAMPLE_DRIVE_FOLDERS: DriveFolderItem[] = [
+  // Root level folders in "My Drive"
+  {
+    id: "sample-folder-game-projects",
+    name: "Game_Projects",
+    parents: ["root"],
+    path: "My Drive / Game_Projects",
+    pathSegments: ["My Drive", "Game_Projects"],
+  },
+  {
+    id: "sample-folder-prototypes",
+    name: "Prototypes",
+    parents: ["root"],
+    path: "My Drive / Prototypes",
+    pathSegments: ["My Drive", "Prototypes"],
+  },
+  {
+    id: "sample-folder-asset-packs",
+    name: "Asset_Packs",
+    parents: ["root"],
+    path: "My Drive / Asset_Packs",
+    pathSegments: ["My Drive", "Asset_Packs"],
+  },
+
+  // Subfolders inside "Game_Projects"
+  {
+    id: "sample-folder-audio",
+    name: "Audio",
+    parents: ["sample-folder-game-projects"],
+    path: "My Drive / Game_Projects / Audio",
+    pathSegments: ["My Drive", "Game_Projects", "Audio"],
+  },
+  {
+    id: "sample-folder-visuals",
+    name: "Visuals",
+    parents: ["sample-folder-game-projects"],
+    path: "My Drive / Game_Projects / Visuals",
+    pathSegments: ["My Drive", "Game_Projects", "Visuals"],
+  },
+  {
+    id: "sample-folder-ui-textures",
+    name: "UI_Textures",
+    parents: ["sample-folder-game-projects"],
+    path: "My Drive / Game_Projects / UI_Textures",
+    pathSegments: ["My Drive", "Game_Projects", "UI_Textures"],
+  },
+
+  // Subfolders inside "Game_Projects / Audio"
+  {
+    id: "sample-folder-audio-sfx-1",
+    name: "SFX",
+    parents: ["sample-folder-audio"],
+    path: "My Drive / Game_Projects / Audio / SFX",
+    pathSegments: ["My Drive", "Game_Projects", "Audio", "SFX"],
+  },
+  {
+    id: "sample-folder-audio-music",
+    name: "Music",
+    parents: ["sample-folder-audio"],
+    path: "My Drive / Game_Projects / Audio / Music",
+    pathSegments: ["My Drive", "Game_Projects", "Audio", "Music"],
+  },
+
+  // Subfolders inside "Game_Projects / Visuals"
+  {
+    id: "sample-folder-sprites",
+    name: "2D_Sprites",
+    parents: ["sample-folder-visuals"],
+    path: "My Drive / Game_Projects / Visuals / 2D_Sprites",
+    pathSegments: ["My Drive", "Game_Projects", "Visuals", "2D_Sprites"],
+  },
+  {
+    id: "sample-folder-models",
+    name: "3D_Models",
+    parents: ["sample-folder-visuals"],
+    path: "My Drive / Game_Projects / Visuals / 3D_Models",
+    pathSegments: ["My Drive", "Game_Projects", "Visuals", "3D_Models"],
+  },
+
+  // Subfolders inside "Prototypes"
+  {
+    id: "sample-folder-platformer",
+    name: "Platformer_2026",
+    parents: ["sample-folder-prototypes"],
+    path: "My Drive / Prototypes / Platformer_2026",
+    pathSegments: ["My Drive", "Prototypes", "Platformer_2026"],
+  },
+  {
+    id: "sample-folder-platformer-audio",
+    name: "Audio",
+    parents: ["sample-folder-platformer"],
+    path: "My Drive / Prototypes / Platformer_2026 / Audio",
+    pathSegments: ["My Drive", "Prototypes", "Platformer_2026", "Audio"],
+  },
+  {
+    id: "sample-folder-platformer-sfx",
+    name: "SFX",
+    parents: ["sample-folder-platformer-audio"],
+    path: "My Drive / Prototypes / Platformer_2026 / Audio / SFX",
+    pathSegments: ["My Drive", "Prototypes", "Platformer_2026", "Audio", "SFX"],
+  },
+
+  // Subfolders inside "Asset_Packs"
+  {
+    id: "sample-folder-kenney",
+    name: "Kenney_Game_Assets",
+    parents: ["sample-folder-asset-packs"],
+    path: "My Drive / Asset_Packs / Kenney_Game_Assets",
+    pathSegments: ["My Drive", "Asset_Packs", "Kenney_Game_Assets"],
+  },
+];
 
 export const SAMPLE_GAME_ASSETS: EnrichedAsset[] = [
   {

@@ -1,4 +1,10 @@
-import { DriveFileItem, EnrichedAsset, AssetCategory, SmartMetadata } from "../types";
+import {
+  DriveFileItem,
+  EnrichedAsset,
+  AssetCategory,
+  SmartMetadata,
+  DriveFolderItem,
+} from "../types";
 
 const DRIVE_API_BASE = "https://www.googleapis.com/drive/v3";
 
@@ -357,11 +363,62 @@ export async function fetchDriveFiles(
   return gameFiles.map((item) => enrichDriveAsset(item));
 }
 
-// Fetch subfolders list for folder picker / navigation
+/**
+ * Resolves full path for a list of folders using parent IDs and root folder.
+ * Example output: "My Drive / GameProjects / Audio / SFX"
+ */
+export function resolveFolderHierarchy(
+  rawFolders: Array<{ id: string; name: string; parents?: string[] }>,
+  rootName: string = "My Drive",
+  rootId?: string | null
+): DriveFolderItem[] {
+  const folderMap = new Map<string, { id: string; name: string; parents?: string[] }>();
+  for (const f of rawFolders) {
+    folderMap.set(f.id, f);
+  }
+
+  return rawFolders.map((folder) => {
+    const segments: string[] = [folder.name];
+    const visited = new Set<string>([folder.id]);
+    let current = folder;
+
+    while (current.parents && current.parents.length > 0) {
+      const parentId = current.parents[0];
+      if (parentId === "root" || (rootId && parentId === rootId)) {
+        break;
+      }
+      if (visited.has(parentId)) {
+        break; // Guard against circular relationships
+      }
+      visited.add(parentId);
+
+      const parentFolder = folderMap.get(parentId);
+      if (parentFolder) {
+        segments.unshift(parentFolder.name);
+        current = parentFolder;
+      } else {
+        break;
+      }
+    }
+
+    // Always include the root "My Drive" at the very beginning
+    segments.unshift(rootName);
+
+    return {
+      id: folder.id,
+      name: folder.name,
+      parents: folder.parents,
+      path: segments.join(" / "),
+      pathSegments: segments,
+    };
+  });
+}
+
+// Fetch subfolders list for folder picker & navigation with full path resolution
 export async function fetchDriveFolders(
   token: string,
   parentId?: string
-): Promise<{ id: string; name: string; parents?: string[] }[]> {
+): Promise<DriveFolderItem[]> {
   const queryParts = [
     "mimeType = 'application/vnd.google-apps.folder'",
     "trashed = false",
@@ -373,18 +430,81 @@ export async function fetchDriveFolders(
   const query = queryParts.join(" and ");
   const url = `${DRIVE_API_BASE}/files?q=${encodeURIComponent(
     query
-  )}&fields=files(id, name, parents)&pageSize=50&orderBy=name`;
+  )}&fields=nextPageToken,files(id,name,parents)&pageSize=150&orderBy=name`;
 
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const [foldersResponse, rootResponse] = await Promise.allSettled([
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } }),
+    fetch(`${DRIVE_API_BASE}/files/root?fields=id,name`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  ]);
 
-  if (!response.ok) {
-    throw new Error(`Failed to load Google Drive folders (${response.status})`);
+  if (foldersResponse.status !== "fulfilled" || !foldersResponse.value.ok) {
+    throw new Error(
+      `Failed to load Google Drive folders (${
+        foldersResponse.status === "fulfilled"
+          ? foldersResponse.value.status
+          : "network error"
+      })`
+    );
   }
 
-  const data = await response.json();
-  return data.files || [];
+  const data = await foldersResponse.value.json();
+  const rawFolders: Array<{ id: string; name: string; parents?: string[] }> =
+    data.files || [];
+
+  // Determine root folder info
+  let rootId: string | null = null;
+  let rootName = "My Drive";
+  if (rootResponse.status === "fulfilled" && rootResponse.value.ok) {
+    try {
+      const rootData = await rootResponse.value.json();
+      if (rootData.id) rootId = rootData.id;
+      if (rootData.name) rootName = rootData.name;
+    } catch {
+      // Fallback to "My Drive"
+    }
+  }
+
+  // Attempt to resolve missing parent folders if any
+  const folderMap = new Map<string, { id: string; name: string; parents?: string[] }>();
+  for (const f of rawFolders) {
+    folderMap.set(f.id, f);
+  }
+
+  const missingParentIds = new Set<string>();
+  for (const f of rawFolders) {
+    if (f.parents && f.parents.length > 0) {
+      const pId = f.parents[0];
+      if (pId !== "root" && pId !== rootId && !folderMap.has(pId)) {
+        missingParentIds.add(pId);
+      }
+    }
+  }
+
+  // Fetch up to 10 missing parents to ensure full paths are accurate
+  if (missingParentIds.size > 0) {
+    const idsToFetch = Array.from(missingParentIds).slice(0, 10);
+    try {
+      const parentFetches = await Promise.allSettled(
+        idsToFetch.map((pId) =>
+          fetch(`${DRIVE_API_BASE}/files/${pId}?fields=id,name,parents`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then((r) => (r.ok ? r.json() : null))
+        )
+      );
+      for (const res of parentFetches) {
+        if (res.status === "fulfilled" && res.value && res.value.id) {
+          folderMap.set(res.value.id, res.value);
+          rawFolders.push(res.value);
+        }
+      }
+    } catch {
+      // Silently continue if fetching parent info fails
+    }
+  }
+
+  return resolveFolderHierarchy(rawFolders, rootName, rootId);
 }
 
 // Create a new folder on Drive (Requires confirmation in UI)
@@ -392,16 +512,16 @@ export async function createDriveFolder(
   token: string,
   name: string,
   parentId?: string
-): Promise<{ id: string; name: string }> {
+): Promise<{ id: string; name: string; parents?: string[] }> {
   const body: any = {
     name,
     mimeType: "application/vnd.google-apps.folder",
   };
-  if (parentId && parentId !== "all") {
+  if (parentId && parentId !== "all" && parentId !== "root") {
     body.parents = [parentId];
   }
 
-  const response = await fetch(`${DRIVE_API_BASE}/files`, {
+  const response = await fetch(`${DRIVE_API_BASE}/files?fields=id,name,parents`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

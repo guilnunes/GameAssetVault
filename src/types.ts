@@ -58,12 +58,20 @@ export interface AssetCollection {
   updatedAt: string;
 }
 
+export interface DriveFolderItem {
+  id: string;
+  name: string;
+  parents?: string[];
+  path?: string; // Full hierarchical path, e.g. "My Drive / GameProjects / Audio / SFX"
+  pathSegments?: string[]; // e.g. ["My Drive", "GameProjects", "Audio", "SFX"]
+}
+
 export interface UserPreferences {
   userId: string;
   defaultViewMode: "grid" | "list";
   defaultSortBy: "name" | "modifiedTime" | "size" | "category";
   selectedDriveFolder?: string;
-  savedFolders?: Array<{ id: string; name: string }>;
+  savedFolders?: DriveFolderItem[];
   importantFolderIds?: string[];
   scanScope?: "important" | "all";
   lastDriveSyncTime?: string;

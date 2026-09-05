@@ -21,13 +21,14 @@ import {
   loadUserPreferences,
   saveUserPreferences,
 } from "./services/dbService";
-import { SAMPLE_GAME_ASSETS } from "./data/sampleAssets";
+import { SAMPLE_GAME_ASSETS, SAMPLE_DRIVE_FOLDERS } from "./data/sampleAssets";
 import { CATEGORIES, getCategoryInfo } from "./data/categories";
 import {
   EnrichedAsset,
   SearchFilterState,
   SmartSearchResponse,
   AssetCategory,
+  DriveFolderItem,
 } from "./types";
 import { Navbar } from "./components/Navbar";
 import { SearchBar } from "./components/SearchBar";
@@ -70,9 +71,7 @@ export default function App() {
   const [isSyncReminderDismissed, setIsSyncReminderDismissed] = useState<boolean>(false);
 
   // Folder navigation & Important Folders
-  const [driveFolders, setDriveFolders] = useState<
-    { id: string; name: string }[]
-  >([]);
+  const [driveFolders, setDriveFolders] = useState<DriveFolderItem[]>(SAMPLE_DRIVE_FOLDERS);
   const [selectedFolderId, setSelectedFolderId] = useState<string>("all");
   const [importantFolderIds, setImportantFolderIds] = useState<string[]>([]);
   const [scanScope, setScanScope] = useState<"important" | "all">("all");
@@ -364,6 +363,7 @@ export default function App() {
     setUser(null);
     setToken(null);
     setAssets(SAMPLE_GAME_ASSETS);
+    setDriveFolders(SAMPLE_DRIVE_FOLDERS);
     setIsSampleMode(true);
     setActiveAudio(null);
   };
@@ -958,7 +958,7 @@ export default function App() {
                         if (accessToken) scanDriveFiles(accessToken, f.id);
                       }}
                       className="min-h-[34px] pl-3 pr-1 py-1.5 truncate text-left cursor-pointer flex-1"
-                      title={`Filter by folder: ${f.name}`}
+                      title={f.path ? `Drive Path: ${f.path}` : `Filter by folder: ${f.name}`}
                     >
                       {f.name}
                     </button>
